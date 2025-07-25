@@ -6,3 +6,4 @@ class ChatMessage(Document):
     receiver = StringField(required=True)
     message = StringField(required=True)
     timestamp = DateTimeField(default=datetime.datetime.utcnow)
+    datetime=DateTimeField(required=True)

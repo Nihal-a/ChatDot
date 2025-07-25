@@ -10,6 +10,7 @@ import Cookies from "universal-cookie";
 import Chat from "./Components/Chat.jsx";
 import ChatRoom from "./Components/Chatroom.jsx";
 import PrivateRoute from "./PrivateRoute.jsx";
+import ForgotPass from "./Components/ForgotPass/ForgotPass.jsx";
 
 function App() {
   const [refreshDone, setRefreshDone] = useState(false);
@@ -26,7 +27,7 @@ function App() {
 
       try {
         const verifyRes = await fetch(
-          "http://127.0.0.1:8000/api/token/verify/",
+          "http://192.168.18.144:8000/api/token/verify/",
           {
             method: "POST",
             headers: {
@@ -43,7 +44,7 @@ function App() {
           await fetchUserAndLogin(access);
         } else {
           const refreshRes = await fetch(
-            "http://localhost:8000/api/token/refresh-cookie/",
+            "http://192.168.18.144:8000/api/token/refresh-cookie/",
             {
               method: "POST",
               headers: {
@@ -74,7 +75,7 @@ function App() {
 
   const fetchUserAndLogin = async (token) => {
     try {
-      const userRes = await fetch("http://127.0.0.1:8000/api/get_userdata", {
+      const userRes = await fetch("http://192.168.18.144:8000/api/get_userdata", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -92,7 +93,7 @@ function App() {
             username,
             name,
             email,
-            profile: `http://127.0.0.1:8000${profile}`,
+            profile: `http://192.168.18.144:8000${profile}`,
           })
         );
       } else {
@@ -107,7 +108,7 @@ function App() {
   const handleLogout = async () => {
     dispatch(Logout());
     try {
-      await fetch("http://localhost:8000/api/logout", {
+      await fetch("http://192.168.18.144:8000/api/logout", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${access}`,
@@ -139,6 +140,7 @@ function App() {
         />
         <Route path="/signup" element={<Signup />} />
         <Route path="/signin" element={<Signin />} />
+        <Route path="/forgotpass" element={<ForgotPass />} />
         <Route path="/chat" element={<Chat />} />
         <Route
           path="/chatroom"

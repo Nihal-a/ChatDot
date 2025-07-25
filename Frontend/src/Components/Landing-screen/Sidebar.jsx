@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import { useEffect } from "react";
 import { fetchWithAuth } from "../../utils";
 
-const Sidebar = ({ onselectUser }) => {
+const Sidebar = ({ onselectUser}) => {
   const [search, setSearch] = useState("");
   const [allusers, setAllUsers] = useState([]);
   const [isSelected, setisSelected] = useState();
@@ -20,9 +20,12 @@ const Sidebar = ({ onselectUser }) => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await fetchWithAuth("http://localhost:8000/api/get_users", {
-          method: "GET",
-        });
+        const res = await fetchWithAuth(
+          "http://192.168.18.144:8000/api/get_users",
+          {
+            method: "GET",
+          }
+        );
         const data = await res.json();
 
         if (res.status === 200) {
@@ -45,7 +48,7 @@ const Sidebar = ({ onselectUser }) => {
   }, []);
 
   const profileUrl = user?.profile
-    ? `http://127.0.0.1:8000${user.profile}`
+    ? `http://192.168.18.144:8000${user.profile}`
     : "";
 
   const handleImageError = () => {

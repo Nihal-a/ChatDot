@@ -5,7 +5,7 @@ export const fetchWithAuth = async (url, options = {}) => {
   });
 
   if (res.status === 401 && !options._retry) {
-    const refreshRes = await fetch("http://localhost:8000/api/token/refresh-cookie/", {
+    const refreshRes = await fetch("http://192.168.18.144:8000/api/token/refresh-cookie/", {
       method: "POST",
       credentials: "include", 
     });

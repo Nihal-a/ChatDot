@@ -14,6 +14,20 @@ class CustomUserManager(BaseUserManager):
         user.save(using=self._db)
         return user
     
+    def update_user_password(self, email, password):
+        if not email or not password:
+            raise ValueError('Email and password must be provided.')
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            raise ValueError('No user found with the provided email.')
+
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+    
+    
     def CreateSuperUser(self,email,username,fullname,password=None,**extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
@@ -43,6 +57,11 @@ class Cookie(models.Model):
     
     
 class EmailVerification(models.Model):
+    email=models.EmailField(unique=True)
+    otp=models.BigIntegerField()
+    last_generated=models.DateTimeField(auto_now_add=True)
+    
+class PasswordReset(models.Model):
     email=models.EmailField(unique=True)
     otp=models.BigIntegerField()
     last_generated=models.DateTimeField(auto_now_add=True)

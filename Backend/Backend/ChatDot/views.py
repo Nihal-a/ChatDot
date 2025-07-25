@@ -18,6 +18,8 @@ from django.template.loader import render_to_string
 from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from django.views.decorators.csrf import csrf_exempt
+from collections import defaultdict
+from django.utils.timezone import localtime,make_aware, is_naive
 
 @csrf_exempt
 @api_view(['POST'])
@@ -217,23 +219,40 @@ def Email_verification(request):
 def otp_verification(request):
     email=request.data.get("email")
     otp=request.data.get("otp")
+    operation=request.data.get("operation")
+
 
     if not email or not otp:
         return Response({'detail': 'Email and otp are required'}, status=status.HTTP_400_BAD_REQUEST) 
     
-    try:
-        user=EmailVerification.objects.get(email=email)
-    except EmailVerification.DoesNotExist:
-        return Response({'detail': 'Email not found'}, status=status.HTTP_400_BAD_REQUEST)
+    if operation == "passwordreset":
+        try:
+         user=PasswordReset.objects.get(email=email)
+        except PasswordReset.DoesNotExist:
+            return Response({'detail': 'Email not found'}, status=status.HTTP_400_BAD_REQUEST)
     
-    if str(otp) == str(user.otp):
-        if timezone.now() - user.last_generated > timedelta(minutes=5):
-            return Response({'detail': 'Otp expired try new one'}, status=status.HTTP_401_UNAUTHORIZED)       
-        user.otp=None
-        user.save()
-        return Response({'detail': 'Otp verified succesfully'}, status=status.HTTP_200_OK)
+        if str(otp) == str(user.otp):
+            if timezone.now() - user.last_generated > timedelta(minutes=5):
+                return Response({'detail': 'Otp expired try new one'}, status=status.HTTP_401_UNAUTHORIZED)       
+            user.otp=None
+            user.save()
+            return Response({'detail': 'Otp verified succesfully'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'detail': 'Invaid otp'}, status=status.HTTP_400_BAD_REQUEST)
     else:
-        return Response({'detail': 'Invaid otp'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user=EmailVerification.objects.get(email=email)
+        except EmailVerification.DoesNotExist:
+            return Response({'detail': 'Email not found'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if str(otp) == str(user.otp):
+            if timezone.now() - user.last_generated > timedelta(minutes=5):
+                return Response({'detail': 'Otp expired try new one'}, status=status.HTTP_401_UNAUTHORIZED)       
+            user.otp=None
+            user.save()
+            return Response({'detail': 'Otp verified succesfully'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'detail': 'Invaid otp'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -246,8 +265,7 @@ def username_validation(request):
         return Response({'detail': 'Username exsits!'}, status=status.HTTP_400_BAD_REQUEST)
     else:
         return Response({'detail': "Username dosn't exsits"}, status=status.HTTP_200_OK)
-
-
+    
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -257,7 +275,7 @@ def get_messages(request):
 
     if not sender or not receiver:
         return Response({'detail': 'Sender and receiver are required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     messages = ChatMessage.objects.filter(
         __raw__={
             "$or": [
@@ -265,28 +283,26 @@ def get_messages(request):
                 {"sender": receiver, "receiver": sender}
             ]
         }
-    ).order_by('timestamp')
+    ).order_by('datetime')
 
-    data=[
-        {
+    grouped = defaultdict(list)
+
+    for msg in messages:
+        dt = msg.datetime
+        if is_naive(dt):
+            dt = make_aware(dt)
+
+        local_dt = localtime(dt)
+        date_key = local_dt.strftime("%d %B %Y")  # e.g., "25 July 2025"
+
+        grouped[date_key].append({
             'sender': msg.sender,
             'receiver': msg.receiver,
             'message': msg.message,
-            'timestamp': msg.timestamp.isoformat()
-        } for msg in messages
-    ]
+            'datetime': local_dt.strftime("%H:%M:%S")
+        })
 
-    print(f"Messages retrieved: {len(data)} messages")
-    print(data)
-    return Response({'messages': data}, status=status.HTTP_200_OK)
-
-
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def fake_view(request):
-   
-    return Response(status=status.HTTP_200_OK)
-
+    return Response(grouped, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -303,3 +319,74 @@ def get_users(request):
     ]
 
     return Response({'users': data}, status=status.HTTP_200_OK)
+
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def otpfor_resetpass(request):
+    email=request.data.get("username")
+    
+    try:
+        user=User.objects.get(username=email)      
+    except User.DoesNotExist:
+        try:
+            user=User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'detail': 'User does not exists'}, status=status.HTTP_401_UNAUTHORIZED)     
+    
+    subject="Password Reset"
+    recipient_list=user.email
+    recipient_name=user.fullname.title()
+
+    otp=random.randint(1000, 9999)
+    generated_time=timezone.now()
+    
+
+    html_content = render_to_string("email_templates/password_resetotp.html", {
+        "user_fullname": recipient_name,
+        "otp_code": otp,
+        "year": datetime.now().year,
+    })
+    
+    send_mail(subject,'',f"{subject} ChatDot <noreplyblackeye0265@gmail.com>",
+                [recipient_list],html_message=html_content, fail_silently=False)
+    
+    obj,created=PasswordReset.objects.update_or_create(email=user.email,defaults={"otp":otp, "last_generated":generated_time})
+
+    return Response({'detail': 'code has been sended to your curresponding email',"email":user.email}, status=status.HTTP_200_OK) 
+    
+
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def change_password(request):
+    rec_password = request.data.get("password")
+    email = request.data.get("email")
+
+    if not email or not rec_password:
+        return Response(
+            {"detail": "Both email and password are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        User.objects.update_user_password(email=email, password=rec_password)
+        PasswordReset.objects.filter(email=email).delete()
+        return Response(
+            {"detail": "Password updated successfully."},
+            status=status.HTTP_200_OK,
+        )
+    except Exception as e:
+        print("Error in password update:", e)  
+        return Response(
+            {"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def fake_view(request):
+   
+    return Response(status=status.HTTP_200_OK)

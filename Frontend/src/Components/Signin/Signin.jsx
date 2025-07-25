@@ -25,7 +25,7 @@ const Signin = () => {
     }
     try {
       setloading(true);
-      const res = await fetch("http://localhost:8000/api/login", {
+      const res = await fetch("http://192.168.18.144:8000/api/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -132,8 +132,16 @@ const Signin = () => {
                     </p>
                   )}
                   <p className="peer peer-invalid:visible absolute -bottom-[80%] left-[17%] text-[13px] font-light font-[inter] invisible text-red-500">
-                    Please enter minimum 8 charcter
+                    Please enter minimum 8 character
                   </p>
+                </div>
+                <div className="relative w-full pt-3 pb-4">
+                  <Link to="/forgotpass">
+                    {" "}
+                    <p className="absolute right-[9%] w-full text-sm font-[poppins] font-medium pt-3 text-end pr-10  text-[#68479D] hover:underline cursor-pointer ">
+                      Forgot Password?
+                    </p>
+                  </Link>{" "}
                 </div>
                 <button className="relative  w-[40%] py-1 rounded-md   mt-10 ring-1 ring-[#68479D] focus:outline-0 text-white font-bold font-[inter] active:bg-[#7c62a5] bg-[#68479D]">
                   {loading ? (
