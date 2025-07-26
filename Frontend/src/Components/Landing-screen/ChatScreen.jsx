@@ -7,14 +7,8 @@ import { useDispatch } from "react-redux";
 import { useState, useEffect, useRef } from "react";
 import { Logout } from "../Redux/Slice";
 import { fetchWithAuth } from "../../utils";
-import {
-  format,
-  subDays,
-  parse,
-  isWithinInterval,
-  startOfDay,
-  endOfDay,
-} from "date-fns";
+import { format } from "date-fns";
+import Frndrequest from "./modals/frndrequest";
 
 const ChatScreen = ({ selectedUser, onClose }) => {
   const { user } = useSelector((state) => state.chatdot);
@@ -33,15 +27,13 @@ const ChatScreen = ({ selectedUser, onClose }) => {
   const [loading, setLoading] = useState(false);
   const prevUserRef = useRef(null);
   const textareaRef = useRef();
-  const [liveDate, setliveDate] = useState({
-    today: null,
-    yesterday: null,
-  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const sendMessage = () => {
     if (input.trim() === "") return;
     socketRef.current.send(
       JSON.stringify({
+        type: "message",
         sender: user.username,
         message: input,
         rec: selectedUser.username,
@@ -52,14 +44,12 @@ const ChatScreen = ({ selectedUser, onClose }) => {
       textareaRef.current.style.height = "auto";
     }
   };
-
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       if (e.shiftKey) {
-        // Let browser insert new line
         return;
       } else {
-        e.preventDefault(); // Prevent new line
+        e.preventDefault();
         sendMessage();
       }
     }
@@ -68,8 +58,8 @@ const ChatScreen = ({ selectedUser, onClose }) => {
   const handletextareaInput = () => {
     const textarea = textareaRef.current;
     if (textarea) {
-      textarea.style.height = "auto"; // Reset height
-      textarea.style.height = textarea.scrollHeight + "px"; // Grow to fit content
+      textarea.style.height = "auto";
+      textarea.style.height = textarea.scrollHeight + "px";
     }
   };
 
@@ -95,6 +85,11 @@ const ChatScreen = ({ selectedUser, onClose }) => {
     const roomName = [user.username, selectedUser.username].sort().join("_");
 
     console.log(`Connecting to WebSocket for room: ${roomName}`);
+    if (socketRef.current) {
+      socketRef.current.close();
+      console.log("❌ Previous socket closed");
+      console.log("okokk");
+    }
 
     const socket = new WebSocket(
       `ws://192.168.18.144:8000/ws/chat/${roomName}/?token=${access}`
@@ -103,46 +98,90 @@ const ChatScreen = ({ selectedUser, onClose }) => {
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      const temp = format(data.datetime, "dd MMMM yyyy, hh:mm:ss");
-      const msgingdatetime = parse(temp, "dd MMMM yyyy, hh:mm:ss", new Date());
-      const today = new Date();
-      const isToday = isWithinInterval(msgingdatetime, {
-        start: startOfDay(today),
-        end: endOfDay(today),
+
+      if (data.type === "seen") {
+        // ✅ Mark messages in UI as seen (sent by current user to selected user)
+        setmessages((prevMessages) => {
+          const updated = { ...prevMessages };
+
+          for (const date in updated) {
+            updated[date] = updated[date].map((msg) => {
+              if (
+                msg.sender === user.username &&
+                msg.receiver === data.sender // sender is the one who saw it
+              ) {
+                return { ...msg, seen: true };
+              }
+              return msg;
+            });
+          }
+
+          return updated;
+        });
+
+        return; // Done
+      }
+
+      // It's a new message
+      const msgDate = new Date(data.datetime);
+      const formattedDate = format(msgDate, "dd MMMM yyyy");
+      const formattedTime = format(msgDate, "hh:mm a");
+
+      const newMessage = {
+        sender: data.sender,
+        receiver: data.receiver,
+        message: data.message,
+        time: formattedTime,
+        seen: false, // default false
+      };
+
+      // ✅ Append new message
+      setmessages((prevMessages) => {
+        const updatedMessages = { ...prevMessages };
+
+        if (updatedMessages[formattedDate]) {
+          updatedMessages[formattedDate] = [
+            ...updatedMessages[formattedDate],
+            newMessage,
+          ];
+        } else {
+          updatedMessages[formattedDate] = [newMessage];
+        }
+
+        return updatedMessages;
       });
 
-      // const yesterday = subDays(now, 1);
-      // const isYesterday = isWithinInterval(msgingdatetime, {    -------yesterday check idea
-      //   start: startOfDay(yesterday),
-      //   end: endOfDay(yesterday),
-      // });
-
-      const formattedTime = format(new Date(data.datetime), " hh:mm a");
-      const formattedDate = format(new Date(data.datetime), "dd MMMM yyyy");
-      setmessages((prev) => [
-        ...prev,
-        {
-          sender: data.sender,
-          receiver: data.receiver,
-          message: data.message,
-          date: formattedDate,
-          time: formattedTime,
-        },
-      ]);
+      // ✅ Notify server that you saw it
+      if (data.sender === selectedUser?.username) {
+        socketRef.current.send(
+          JSON.stringify({
+            type: "seen",
+            sender: user.username,
+            receiver: data.sender,
+          })
+        );
+      }
+    };
+    socket.onopen = () => {
+      console.log("✅ WebSocket connection opened");
     };
 
-    socket.onopen = () => console.log("WebSocket Connected");
-    socket.onclose = () => console.log("WebSocket Disconnected");
+    socket.onerror = (error) => {
+      console.error("⚠️ WebSocket error", error);
+    };
 
     return () => {
-      socket.close();
+      if (socketRef.current) {
+        socketRef.current.close();
+        console.log("🧹 Cleanup: socket closed");
+      }
     };
   }, [selectedUser]);
 
   useEffect(() => {
     const fetchMessages = async () => {
       setLoading(true);
-      setmessages([]); // Clear previous messages (optional UX improvement)
+      setmessages([]);
 
       try {
         const res = await fetchWithAuth(
@@ -160,8 +199,6 @@ const ChatScreen = ({ selectedUser, onClose }) => {
         );
 
         const data = await res.json();
-        console.log("oooooooookkkkkkkkkk:", data);
-
         if (res.status === 200) {
           const formattedGroupedMessages = {};
 
@@ -169,7 +206,6 @@ const ChatScreen = ({ selectedUser, onClose }) => {
             const messages = data[date];
 
             formattedGroupedMessages[date] = messages.map((msg) => {
-              // Combine dummy date to parse time
               const timeObj = new Date(`2000-01-01T${msg.datetime}`);
               const formattedTime = format(timeObj, "hh:mm a");
 
@@ -178,12 +214,12 @@ const ChatScreen = ({ selectedUser, onClose }) => {
                 receiver: msg.receiver,
                 message: msg.message,
                 time: formattedTime,
+                seen: Boolean(msg.seen),
               };
             });
           }
 
           setmessages(formattedGroupedMessages);
-          console.log("Formatted grouped messages:", formattedGroupedMessages);
         } else {
           console.error(
             "Failed to fetch messages:",
@@ -196,7 +232,6 @@ const ChatScreen = ({ selectedUser, onClose }) => {
         setLoading(false);
       }
     };
-
     if (selectedUser && selectedUser.username !== prevUserRef.current) {
       fetchMessages();
       prevUserRef.current = selectedUser.username;
@@ -227,8 +262,6 @@ const ChatScreen = ({ selectedUser, onClose }) => {
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, [onClose]);
-
-  console.log(messages);
 
   if (!selectedUser) {
     return (
@@ -281,6 +314,13 @@ const ChatScreen = ({ selectedUser, onClose }) => {
   return (
     <>
       <div className="h-[8%] flex items-center justify-end px-4 py-2 gap-4 bg-white border-b border-gray-200">
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className=" px-3 py-0.5 rounded-md font-medium  ring-1 ring-[#68479D] focus:outline-0 text-white  font-[poppins] active:bg-[#7c62a5] bg-[#68479D]"
+          type="button"
+        >
+          Add Friends
+        </button>
         <i className="bi bi-bell text-xl"></i>
         {/* <p>{time}</p> */}
         {/* <p>{time.format("hh:mm:ss A")}</p> 
@@ -333,10 +373,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
         {!loading &&
           Object.entries(messages).map(([date, msgs]) => (
             <div key={date}>
-              {/* Date heading */}
               <p className="text-center text-xs text-gray-400 my-3">{date}</p>
-
-              {/* Messages for this date */}
               {msgs.map((msg, index) => (
                 <div
                   key={index}
@@ -347,8 +384,25 @@ const ChatScreen = ({ selectedUser, onClose }) => {
                   }`}
                 >
                   <p className="whitespace-pre-wrap text-sm">{msg.message}</p>
-                  <p className="absolute right-1.5 bottom-1 text-[10px] text-gray-300">
+                  <p
+                    className={`absolute ${
+                      msg.sender === user.username ? "right-5 " : "right-2.5 "
+                    } bottom-0.5 text-[9px] text-gray-300`}
+                  >
                     {msg.time}
+                  </p>
+                  <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
+                    {msg.sender === user.username ? (
+                      <>
+                        {msg.seen ? (
+                          <i className="bi bi-check2-all"></i>
+                        ) : (
+                          <i className="bi bi-check2"></i>
+                        )}
+                      </>
+                    ) : (
+                      ""
+                    )}
                   </p>
                 </div>
               ))}
@@ -372,6 +426,10 @@ const ChatScreen = ({ selectedUser, onClose }) => {
         <button onClick={sendMessage}>
           <VscSend className="text-xl text-[#68479D]" />
         </button>
+        <Frndrequest
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+        />
       </div>
     </>
   );

@@ -11,6 +11,7 @@ import Chat from "./Components/Chat.jsx";
 import ChatRoom from "./Components/Chatroom.jsx";
 import PrivateRoute from "./PrivateRoute.jsx";
 import ForgotPass from "./Components/ForgotPass/ForgotPass.jsx";
+import Frndrequest from "./Components/Landing-screen/modals/frndrequest.jsx";
 
 function App() {
   const [refreshDone, setRefreshDone] = useState(false);
@@ -75,13 +76,16 @@ function App() {
 
   const fetchUserAndLogin = async (token) => {
     try {
-      const userRes = await fetch("http://192.168.18.144:8000/api/get_userdata", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const userRes = await fetch(
+        "http://192.168.18.144:8000/api/get_userdata",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       const userData = await userRes.json();
       if (userRes.ok) {
@@ -142,6 +146,7 @@ function App() {
         <Route path="/signin" element={<Signin />} />
         <Route path="/forgotpass" element={<ForgotPass />} />
         <Route path="/chat" element={<Chat />} />
+        <Route path="/test" element={<Frndrequest />} />
         <Route
           path="/chatroom"
           element={

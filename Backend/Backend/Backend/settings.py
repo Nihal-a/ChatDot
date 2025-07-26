@@ -102,10 +102,6 @@ connect(
     tlsCAFile=certifi.where()
 )
 
-from mongoengine import connect, Document, StringField, DateTimeField
-from datetime import datetime
-
-
 
 
 

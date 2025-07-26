@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import { useEffect } from "react";
 import { fetchWithAuth } from "../../utils";
 
-const Sidebar = ({ onselectUser}) => {
+const Sidebar = ({ onselectUser }) => {
   const [search, setSearch] = useState("");
   const [allusers, setAllUsers] = useState([]);
   const [isSelected, setisSelected] = useState();
@@ -111,3 +111,7 @@ const Sidebar = ({ onselectUser}) => {
 };
 
 export default Sidebar;
+
+
+
+

@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField
+from mongoengine import Document, StringField, DateTimeField , BooleanField
 import datetime
 
 class ChatMessage(Document):
@@ -6,4 +6,5 @@ class ChatMessage(Document):
     receiver = StringField(required=True)
     message = StringField(required=True)
     timestamp = DateTimeField(default=datetime.datetime.utcnow)
-    datetime=DateTimeField(required=True)
+    seen = BooleanField(default=False)  # ✅ fix typo: defualt -> default
+    datetime = DateTimeField(default=datetime.datetime.utcnow)

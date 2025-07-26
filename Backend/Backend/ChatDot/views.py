@@ -267,14 +267,27 @@ def username_validation(request):
         return Response({'detail': "Username dosn't exsits"}, status=status.HTTP_200_OK)
     
 
+
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def get_messages(request):
-    sender = request.data.get("sender")
-    receiver = request.data.get("receiver")
+    sender = request.data.get("sender")    
+    receiver = request.data.get("receiver") 
 
     if not sender or not receiver:
         return Response({'detail': 'Sender and receiver are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Mark unseen messages as seen
+    ChatMessage.objects.filter(
+        __raw__={
+            "$or": [
+                {"sender": receiver, "receiver": sender}
+            ],
+            "seen": False
+        }
+    ).update(seen=True)
 
     messages = ChatMessage.objects.filter(
         __raw__={
@@ -286,20 +299,20 @@ def get_messages(request):
     ).order_by('datetime')
 
     grouped = defaultdict(list)
-
     for msg in messages:
         dt = msg.datetime
         if is_naive(dt):
             dt = make_aware(dt)
 
         local_dt = localtime(dt)
-        date_key = local_dt.strftime("%d %B %Y")  # e.g., "25 July 2025"
+        date_key = local_dt.strftime("%d %B %Y")
 
         grouped[date_key].append({
             'sender': msg.sender,
             'receiver': msg.receiver,
             'message': msg.message,
-            'datetime': local_dt.strftime("%H:%M:%S")
+            'datetime': local_dt.strftime("%H:%M:%S"),
+            'seen': msg.seen
         })
 
     return Response(grouped, status=status.HTTP_200_OK)
