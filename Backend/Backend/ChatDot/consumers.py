@@ -9,7 +9,6 @@ from datetime import datetime
 
 User = get_user_model()
 
-# consumers.py
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         try:
@@ -30,6 +29,35 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.room_group_name = f'chat_{self.room_name}'
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
+        
+        # 🔥 NEW: When user connects, mark all unread messages from other user as seen
+        participants = self.room_name.split('_')
+        other_user = None
+        for participant in participants:
+            if participant != self.user.username:
+                other_user = participant
+                break
+        
+        if other_user:
+            # Mark messages from other user to current user as seen
+            updated_count = await sync_to_async(ChatMessage.objects.filter(
+                sender=other_user,
+                receiver=self.user.username,
+                seen=False
+            ).update)(seen=True)
+            
+            print(f"🔥 On connect: Marked {updated_count} messages as seen from {other_user} to {self.user.username}")
+            
+            # Broadcast seen status if there were unread messages
+            if updated_count > 0:
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'seen_update',
+                        'seen_by': self.user.username,
+                        'message_sender': other_user,
+                    }
+                )
 
     async def disconnect(self, close_code):
         if hasattr(self, 'room_group_name'):
@@ -41,21 +69,46 @@ class ChatConsumer(AsyncWebsocketConsumer):
             msg_type = data.get("type", "message")
 
             if msg_type == "seen":
-                sender = data.get("sender")
-                receiver = data.get("receiver")
+                sender = data.get("sender")  # who is marking as seen (current user)
+                receiver = data.get("receiver")  # whose messages are being marked as seen
+                
                 if sender and receiver:
-                    await sync_to_async(ChatMessage.objects.filter(
-                        sender=receiver,
-                        receiver=sender,
+                    # Update messages FROM receiver TO sender (not the other way around)
+                    updated_count = await sync_to_async(ChatMessage.objects.filter(
+                        sender=receiver,  # Messages sent by the other person
+                        receiver=sender,  # To current user
                         seen=False
                     ).update)(seen=True)
-                    print(f"✅ Marked messages as seen from {receiver} to {sender}")
+                    
+                    print(f"✅ Manual seen: Marked {updated_count} messages as seen from {receiver} to {sender}")
+                    
+                    # Broadcast seen status back to the message sender
+                    if updated_count > 0:
+                        await self.channel_layer.group_send(
+                            self.room_group_name,
+                            {
+                                'type': 'seen_update',
+                                'seen_by': sender,  # who saw the messages
+                                'message_sender': receiver,  # whose messages were seen
+                            }
+                        )
 
             elif msg_type == "message":
                 message = data['message']
                 receiver = data['rec']
                 current_time = datetime.now()
 
+                # Save message to database first
+                chat_message = ChatMessage(
+                    sender=self.user.username,
+                    receiver=receiver,
+                    message=message,
+                    datetime=current_time,
+                    seen=False  # Always start as false
+                )
+                await sync_to_async(chat_message.save)()
+
+                # Then broadcast to room
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
@@ -67,22 +120,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     }
                 )
 
-                chat_message = ChatMessage(
-                    sender=self.user.username,
-                    receiver=receiver,
-                    message=message,
-                    datetime=current_time,
-                    seen=False
-                )
-                await sync_to_async(chat_message.save)()
-
         except Exception as e:
             print("Error in receive():", e)
 
     async def chat_message(self, event):
+        """Handle regular chat messages"""
         await self.send(text_data=json.dumps({
+            'type': 'message',
             'sender': event['sender'],
             'receiver': event['receiver'],
             'message': event['message'],
             'datetime': event['datetime']
+        }))
+
+    async def seen_update(self, event):
+        """Handle seen status updates"""
+        await self.send(text_data=json.dumps({
+            'type': 'seen',
+            'seen_by': event['seen_by'],
+            'message_sender': event['message_sender'],
         }))

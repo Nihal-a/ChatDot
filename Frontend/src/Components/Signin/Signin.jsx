@@ -22,10 +22,10 @@ const Signin = () => {
     e.preventDefault();
     if (formData.password.length < 8) {
       return;
-    }
+    }`  `
     try {
       setloading(true);
-      const res = await fetch("http://192.168.18.144:8000/api/login", {
+      const res = await fetch("http://192.168.1.65:8000/api/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

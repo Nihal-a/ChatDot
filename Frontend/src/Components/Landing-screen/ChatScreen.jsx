@@ -1,13 +1,13 @@
 import React from "react";
 import { useSelector } from "react-redux";
 import { VscSend } from "react-icons/vsc";
-import Cookies from "universal-cookie";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { useState, useEffect, useRef } from "react";
 import { Logout } from "../Redux/Slice";
 import { fetchWithAuth } from "../../utils";
 import { format } from "date-fns";
+import Cookies from "universal-cookie";
 import Frndrequest from "./modals/frndrequest";
 
 const ChatScreen = ({ selectedUser, onClose }) => {
@@ -19,7 +19,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
   const cookies = new Cookies();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [input, setinput] = useState();
+  const [input, setinput] = useState("");
   const [messages, setmessages] = useState([]);
   const access = cookies.get("access");
   const socketRef = useRef(null);
@@ -44,6 +44,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
       textareaRef.current.style.height = "auto";
     }
   };
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       if (e.shiftKey) {
@@ -66,7 +67,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
   const handleLogout = async () => {
     dispatch(Logout());
     try {
-      await fetch("http://192.168.18.144:8000/api/logout", {
+      await fetch("http://192.168.1.65:8000/api/logout", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${access}`,
@@ -84,32 +85,41 @@ const ChatScreen = ({ selectedUser, onClose }) => {
 
     const roomName = [user.username, selectedUser.username].sort().join("_");
 
-    console.log(`Connecting to WebSocket for room: ${roomName}`);
+    console.log(`🔥 Connecting to WebSocket for room: ${roomName}`);
     if (socketRef.current) {
       socketRef.current.close();
       console.log("❌ Previous socket closed");
-      console.log("okokk");
     }
 
     const socket = new WebSocket(
-      `ws://192.168.18.144:8000/ws/chat/${roomName}/?token=${access}`
+      `ws://192.168.1.65:8000/ws/chat/${roomName}/?token=${access}`
     );
+
     socketRef.current = socket;
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
+      console.log("📨 Received WebSocket data:", data);
 
+      // 🔥 Handle seen status updates
       if (data.type === "seen") {
-        // ✅ Mark messages in UI as seen (sent by current user to selected user)
+        console.log("👀 Processing seen update:", data);
+
+        // Mark messages as seen in UI for the sender
         setmessages((prevMessages) => {
           const updated = { ...prevMessages };
 
           for (const date in updated) {
             updated[date] = updated[date].map((msg) => {
+              // Mark messages sent by current user to the selected user as seen
+              // when the selected user (data.seen_by) has seen them
               if (
                 msg.sender === user.username &&
-                msg.receiver === data.sender // sender is the one who saw it
+                msg.receiver === selectedUser.username &&
+                data.seen_by === selectedUser.username &&
+                data.message_sender === user.username
               ) {
+                console.log("✅ Marking message as seen:", msg.message);
                 return { ...msg, seen: true };
               }
               return msg;
@@ -119,51 +129,74 @@ const ChatScreen = ({ selectedUser, onClose }) => {
           return updated;
         });
 
-        return; // Done
+        return; // Done processing seen update
       }
 
-      // It's a new message
-      const msgDate = new Date(data.datetime);
-      const formattedDate = format(msgDate, "dd MMMM yyyy");
-      const formattedTime = format(msgDate, "hh:mm a");
+      // 🔥 Handle new messages
+      if (data.type === "message" || !data.type) {
+        const msgDate = new Date(data.datetime);
+        const formattedDate = format(msgDate, "dd MMMM yyyy");
+        const formattedTime = format(msgDate, "hh:mm a");
 
-      const newMessage = {
-        sender: data.sender,
-        receiver: data.receiver,
-        message: data.message,
-        time: formattedTime,
-        seen: false, // default false
-      };
+        const newMessage = {
+          sender: data.sender,
+          receiver: data.receiver,
+          message: data.message,
+          time: formattedTime,
+          seen: false, // Always start as false
+        };
 
-      // ✅ Append new message
-      setmessages((prevMessages) => {
-        const updatedMessages = { ...prevMessages };
+        console.log("📨 New message received:", newMessage);
 
-        if (updatedMessages[formattedDate]) {
-          updatedMessages[formattedDate] = [
-            ...updatedMessages[formattedDate],
-            newMessage,
-          ];
-        } else {
-          updatedMessages[formattedDate] = [newMessage];
+        // Add new message to state
+        setmessages((prevMessages) => {
+          const updatedMessages = { ...prevMessages };
+
+          if (updatedMessages[formattedDate]) {
+            updatedMessages[formattedDate] = [
+              ...updatedMessages[formattedDate],
+              newMessage,
+            ];
+          } else {
+            updatedMessages[formattedDate] = [newMessage];
+          }
+
+          return updatedMessages;
+        });
+
+        // 🔥 Auto-mark as seen if message is received from the selected user
+        if (
+          data.sender === selectedUser.username &&
+          data.receiver === user.username
+        ) {
+          console.log(
+            "👀 Auto-sending seen notification for message from",
+            data.sender
+          );
+
+          // Small delay to ensure message is processed first
+          setTimeout(() => {
+            if (
+              socketRef.current &&
+              socketRef.current.readyState === WebSocket.OPEN
+            ) {
+              socketRef.current.send(
+                JSON.stringify({
+                  type: "seen",
+                  sender: user.username, // who is marking as seen
+                  receiver: data.sender, // whose messages are being marked as seen
+                })
+              );
+            }
+          }, 100);
         }
-
-        return updatedMessages;
-      });
-
-      // ✅ Notify server that you saw it
-      if (data.sender === selectedUser?.username) {
-        socketRef.current.send(
-          JSON.stringify({
-            type: "seen",
-            sender: user.username,
-            receiver: data.sender,
-          })
-        );
       }
     };
+
     socket.onopen = () => {
       console.log("✅ WebSocket connection opened");
+      // The backend will automatically mark messages as seen on connect
+      // No need to send manual seen notification here anymore
     };
 
     socket.onerror = (error) => {
@@ -176,7 +209,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
         console.log("🧹 Cleanup: socket closed");
       }
     };
-  }, [selectedUser]);
+  }, [selectedUser, user.username]);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -185,7 +218,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
 
       try {
         const res = await fetchWithAuth(
-          "http://192.168.18.144:8000/api/get_messages",
+          "http://192.168.1.65:8000/api/get_messages",
           {
             method: "POST",
             headers: {
@@ -220,6 +253,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
           }
 
           setmessages(formattedGroupedMessages);
+          console.log("📚 Loaded messages:", formattedGroupedMessages);
         } else {
           console.error(
             "Failed to fetch messages:",
@@ -232,6 +266,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
         setLoading(false);
       }
     };
+
     if (selectedUser && selectedUser.username !== prevUserRef.current) {
       fetchMessages();
       prevUserRef.current = selectedUser.username;
@@ -266,7 +301,6 @@ const ChatScreen = ({ selectedUser, onClose }) => {
   if (!selectedUser) {
     return (
       <>
-        {" "}
         <div className="h-[8%] flex items-center justify-end px-4 py-2 gap-4 bg-white border-b border-gray-200">
           <i className="bi bi-bell text-xl"></i>
           <div
@@ -304,7 +338,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
           )}
         </div>
         <div
-          className="flex-grow overflow-y-auto  scrollbar-hide px-4 py-3 space-y-2"
+          className="flex-grow overflow-y-auto scrollbar-hide px-4 py-3 space-y-2"
           style={{ scrollbarWidth: "none" }}
         ></div>
       </>
@@ -316,15 +350,12 @@ const ChatScreen = ({ selectedUser, onClose }) => {
       <div className="h-[8%] flex items-center justify-end px-4 py-2 gap-4 bg-white border-b border-gray-200">
         <button
           onClick={() => setIsModalOpen(true)}
-          className=" px-3 py-0.5 rounded-md font-medium  ring-1 ring-[#68479D] focus:outline-0 text-white  font-[poppins] active:bg-[#7c62a5] bg-[#68479D]"
+          className="px-3 py-0.5 rounded-md font-medium ring-1 ring-[#68479D] focus:outline-0 text-white font-[poppins] active:bg-[#7c62a5] bg-[#68479D]"
           type="button"
         >
           Add Friends
         </button>
         <i className="bi bi-bell text-xl"></i>
-        {/* <p>{time}</p> */}
-        {/* <p>{time.format("hh:mm:ss A")}</p> 
-        <p>{time.format("MMMM Do, YYYY")}</p>  */}
 
         <div
           onClick={() => setDropdown(!dropdown)}
@@ -361,7 +392,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
         )}
       </div>
       <div
-        className=" flex-grow overflow-y-auto  scrollbar-hide px-4 py-3 space-y-2"
+        className="flex-grow overflow-y-auto scrollbar-hide px-4 py-3 space-y-2"
         style={{ scrollbarWidth: "none" }}
       >
         {loading && <div>Loading messages...</div>}
@@ -395,7 +426,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
                     {msg.sender === user.username ? (
                       <>
                         {msg.seen ? (
-                          <i className="bi bi-check2-all"></i>
+                          <i className="bi bi-check2-all text-blue-400"></i>
                         ) : (
                           <i className="bi bi-check2"></i>
                         )}

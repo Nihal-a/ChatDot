@@ -37,7 +37,7 @@ const ForgotPass = () => {
     try {
       setisOtpSend(null);
       setloading((prev) => ({ ...prev, otpsend: true }));
-      const res = await fetch("http://192.168.18.144:8000/api/otpfor_resetpass", {
+      const res = await fetch("http://192.168.1.65:8000/api/otpfor_resetpass", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -74,7 +74,7 @@ const ForgotPass = () => {
     try {
       setisOtpSend(null);
       setloading((prev) => ({ ...prev, otpverfication: true }));
-      const res = await fetch("http://192.168.18.144:8000/api/otp_verification", {
+      const res = await fetch("http://192.168.1.65:8000/api/otp_verification", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -108,7 +108,7 @@ const ForgotPass = () => {
     try {
       setloading((prev) => ({ ...prev, changepass: true }));
 
-      const res = await fetch("http://192.168.18.144:8000/api/change_password", {
+      const res = await fetch("http://192.168.1.65:8000/api/change_password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
