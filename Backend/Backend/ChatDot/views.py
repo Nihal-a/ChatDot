@@ -301,7 +301,6 @@ def get_messages(request):
     grouped = defaultdict(list)
 
     for msg in messages:
-        print(msg.id)
         dt = msg.datetime
         if is_naive(dt):
             dt = make_aware(dt)

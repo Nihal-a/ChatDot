@@ -55,6 +55,16 @@ const ChatScreen = ({ selectedUser, onClose }) => {
     );
   };
 
+  const deleteMessageBoth = (msgid) => {
+    console.log(msgid);
+    socketRef.current.send(
+      JSON.stringify({
+        type: "deleteBoth",
+        id: msgid,
+      })
+    );
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       if (e.shiftKey) {
@@ -72,9 +82,6 @@ const ChatScreen = ({ selectedUser, onClose }) => {
       textarea.style.height = "auto";
       textarea.style.height = textarea.scrollHeight + "px";
     }
-  };
-  const handlemsgoptions = (msgid) => {
-    alert(msgid);
   };
 
   const handleLogout = async () => {
@@ -156,6 +163,33 @@ const ChatScreen = ({ selectedUser, onClose }) => {
           for (const date in prevMessages) {
             const filtered = prevMessages[date].map((msg) =>
               msg.id === deletedMsgId ? { ...msg, is_deleted: true } : msg
+            );
+
+            updatedMessages[date] = filtered;
+          }
+
+          return updatedMessages;
+        });
+
+        return;
+      }
+
+      if (data.type === "deleteBoth") {
+        const deletedMsgId = data.id;
+        console.log("🗑️ Deleting message in both with ID:", deletedMsgId);
+
+        setmessages((prevMessages) => {
+          const updatedMessages = {};
+
+          for (const date in prevMessages) {
+            const filtered = prevMessages[date].map((msg) =>
+              msg.id === deletedMsgId
+                ? {
+                    ...msg,
+                    is_bothdeleted: true,
+                    message: "You deleted this message",
+                  }
+                : msg
             );
 
             updatedMessages[date] = filtered;
@@ -284,6 +318,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
               return {
                 id: msg.id,
                 is_deleted: msg.is_deleted,
+                is_bothdeleted: msg.is_bothdeleted,
                 sender: msg.sender,
                 receiver: msg.receiver,
                 message: msg.message,
@@ -449,12 +484,14 @@ const ChatScreen = ({ selectedUser, onClose }) => {
               {msgs.map(
                 (msg, index) =>
                   !msg.is_deleted &&
-                  msg.sender === user.username && (
+                  // !msg.is_bothdeleted && 
+                  (
+                    // msg.sender === user.username &&
                     <div
                       key={index}
                       className={` relative w-fit min-w-[8%] max-w-[70%] px-2 py-1 pb-3.5 rounded-lg mb-1 ${
                         msg.sender === user.username
-                          ? "bg-[#68479D] text-white self-end ml-auto group"
+                          ? "bg-[#68479D] text-white self-end ml-auto group "
                           : "bg-white self-start"
                       }`}
                     >
@@ -466,7 +503,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
                           <div
                             className="invisible opacity-0 ring-1 px-1.5 rounded-full py-0 text-gray-400 text-xs   group-hover:opacity-100 transition-opacity duration-150 delay-100  group-hover:visible"
                             // onClick={() => handlemsgoptions(msg.id)}
-                            onClick={() => deleteMessageMe(msg.id)}
+                            onClick={() => deleteMessageBoth(msg.id)}
                           >
                             {/* invisible opacity-0 */}
                             <i className="bi bi-chevron-down  "></i>

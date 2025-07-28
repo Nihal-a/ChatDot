@@ -71,14 +71,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             if msg_type=="deleteMe":
                 msg_id=data.get("id")
-                print(msg_id)
                 ChatMessage.objects(id=ObjectId(msg_id)).update_one(set__is_deleted=True)
-                print("ookok")
+              
 
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
                         "type": "delete_me_message_broadcast",
+                        "id": msg_id,
+                    }
+                )
+
+
+            if msg_type=="deleteBoth":
+                msg_id=data.get("id")
+                ChatMessage.objects(id=ObjectId(msg_id)).update_one(set__is_bothdeleted=True)
+              
+
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        "type": "delete_both_message_broadcast",
                         "id": msg_id,
                     }
                 )
@@ -167,5 +180,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         await self.send(text_data=json.dumps({
             "type": "deleteMe",
+            "id": msg_id,
+        }))
+
+
+    async def delete_both_message_broadcast(self, event):
+        msg_id = event["id"]
+
+        await self.send(text_data=json.dumps({
+            "type": "deleteBoth",
             "id": msg_id,
         }))
