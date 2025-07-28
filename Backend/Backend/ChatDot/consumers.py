@@ -6,6 +6,7 @@ from rest_framework_simplejwt.tokens import AccessToken
 from channels.db import sync_to_async
 from .mongodb import ChatMessage
 from datetime import datetime
+from bson import ObjectId 
 
 User = get_user_model()
 
@@ -68,6 +69,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
             data = json.loads(text_data)
             msg_type = data.get("type", "message")
 
+            if msg_type=="deleteMe":
+                msg_id=data.get("id")
+                print(msg_id)
+                ChatMessage.objects(id=ObjectId(msg_id)).update_one(set__is_deleted=True)
+                print("ookok")
+
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        "type": "delete_me_message_broadcast",
+                        "id": msg_id,
+                    }
+                )
+
+
+
             if msg_type == "seen":
                 sender = data.get("sender")  # who is marking as seen (current user)
                 receiver = data.get("receiver")  # whose messages are being marked as seen
@@ -107,12 +124,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     seen=False  # Always start as false
                 )
                 await sync_to_async(chat_message.save)()
+             
 
                 # Then broadcast to room
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
                         'type': 'chat_message',
+                        'id': str(chat_message.id),
                         'sender': self.user.username,
                         'message': message,
                         'receiver': receiver,
@@ -127,6 +146,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """Handle regular chat messages"""
         await self.send(text_data=json.dumps({
             'type': 'message',
+            'id':event['id'],
             'sender': event['sender'],
             'receiver': event['receiver'],
             'message': event['message'],
@@ -139,4 +159,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'type': 'seen',
             'seen_by': event['seen_by'],
             'message_sender': event['message_sender'],
+        }))
+
+
+    async def delete_me_message_broadcast(self, event):
+        msg_id = event["id"]
+
+        await self.send(text_data=json.dumps({
+            "type": "deleteMe",
+            "id": msg_id,
         }))

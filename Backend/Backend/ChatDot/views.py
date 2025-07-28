@@ -299,7 +299,9 @@ def get_messages(request):
     ).order_by('datetime')
 
     grouped = defaultdict(list)
+
     for msg in messages:
+        print(msg.id)
         dt = msg.datetime
         if is_naive(dt):
             dt = make_aware(dt)
@@ -308,6 +310,8 @@ def get_messages(request):
         date_key = local_dt.strftime("%d %B %Y")
 
         grouped[date_key].append({
+            'id': str(msg.id),
+            'is_deleted':msg.is_deleted,
             'sender': msg.sender,
             'receiver': msg.receiver,
             'message': msg.message,

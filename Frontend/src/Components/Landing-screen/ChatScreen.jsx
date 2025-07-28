@@ -45,6 +45,16 @@ const ChatScreen = ({ selectedUser, onClose }) => {
     }
   };
 
+  const deleteMessageMe = (msgid) => {
+    console.log(msgid);
+    socketRef.current.send(
+      JSON.stringify({
+        type: "deleteMe",
+        id: msgid,
+      })
+    );
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       if (e.shiftKey) {
@@ -63,11 +73,14 @@ const ChatScreen = ({ selectedUser, onClose }) => {
       textarea.style.height = textarea.scrollHeight + "px";
     }
   };
+  const handlemsgoptions = (msgid) => {
+    alert(msgid);
+  };
 
   const handleLogout = async () => {
     dispatch(Logout());
     try {
-      await fetch("http://192.168.1.65:8000/api/logout", {
+      await fetch("http://192.168.18.144:8000/api/logout", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${access}`,
@@ -85,14 +98,15 @@ const ChatScreen = ({ selectedUser, onClose }) => {
 
     const roomName = [user.username, selectedUser.username].sort().join("_");
 
-    console.log(`🔥 Connecting to WebSocket for room: ${roomName}`);
+    console.log(`Connecting to WebSocket for room: ${roomName}`);
+
     if (socketRef.current) {
       socketRef.current.close();
-      console.log("❌ Previous socket closed");
+      console.log("Previous socket closed");
     }
 
     const socket = new WebSocket(
-      `ws://192.168.1.65:8000/ws/chat/${roomName}/?token=${access}`
+      `ws://192.168.18.144:8000/ws/chat/${roomName}/?token=${access}`
     );
 
     socketRef.current = socket;
@@ -103,7 +117,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
 
       // 🔥 Handle seen status updates
       if (data.type === "seen") {
-        console.log("👀 Processing seen update:", data);
+        console.log("Processing seen update:", data);
 
         // Mark messages as seen in UI for the sender
         setmessages((prevMessages) => {
@@ -132,6 +146,27 @@ const ChatScreen = ({ selectedUser, onClose }) => {
         return; // Done processing seen update
       }
 
+      if (data.type === "deleteMe") {
+        const deletedMsgId = data.id;
+        console.log("🗑️ Deleting message with ID:", deletedMsgId);
+
+        setmessages((prevMessages) => {
+          const updatedMessages = {};
+
+          for (const date in prevMessages) {
+            const filtered = prevMessages[date].map((msg) =>
+              msg.id === deletedMsgId ? { ...msg, is_deleted: true } : msg
+            );
+
+            updatedMessages[date] = filtered;
+          }
+
+          return updatedMessages;
+        });
+
+        return;
+      }
+
       // 🔥 Handle new messages
       if (data.type === "message" || !data.type) {
         const msgDate = new Date(data.datetime);
@@ -139,11 +174,14 @@ const ChatScreen = ({ selectedUser, onClose }) => {
         const formattedTime = format(msgDate, "hh:mm a");
 
         const newMessage = {
+          id: data.id,
+          is_deleted: false,
+          is_bothdeleted: false,
           sender: data.sender,
           receiver: data.receiver,
           message: data.message,
           time: formattedTime,
-          seen: false, // Always start as false
+          seen: false,
         };
 
         console.log("📨 New message received:", newMessage);
@@ -218,7 +256,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
 
       try {
         const res = await fetchWithAuth(
-          "http://192.168.1.65:8000/api/get_messages",
+          "http://192.168.18.144:8000/api/get_messages",
           {
             method: "POST",
             headers: {
@@ -232,6 +270,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
         );
 
         const data = await res.json();
+        console.log(data);
         if (res.status === 200) {
           const formattedGroupedMessages = {};
 
@@ -243,6 +282,8 @@ const ChatScreen = ({ selectedUser, onClose }) => {
               const formattedTime = format(timeObj, "hh:mm a");
 
               return {
+                id: msg.id,
+                is_deleted: msg.is_deleted,
                 sender: msg.sender,
                 receiver: msg.receiver,
                 message: msg.message,
@@ -405,38 +446,60 @@ const ChatScreen = ({ selectedUser, onClose }) => {
           Object.entries(messages).map(([date, msgs]) => (
             <div key={date}>
               <p className="text-center text-xs text-gray-400 my-3">{date}</p>
-              {msgs.map((msg, index) => (
-                <div
-                  key={index}
-                  className={`relative w-fit min-w-[8%] max-w-[70%] px-2 py-1 pb-3.5 rounded-lg mb-1 ${
-                    msg.sender === user.username
-                      ? "bg-[#68479D] text-white self-end ml-auto"
-                      : "bg-white self-start"
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap text-sm">{msg.message}</p>
-                  <p
-                    className={`absolute ${
-                      msg.sender === user.username ? "right-5 " : "right-2.5 "
-                    } bottom-0.5 text-[9px] text-gray-300`}
-                  >
-                    {msg.time}
-                  </p>
-                  <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
-                    {msg.sender === user.username ? (
-                      <>
-                        {msg.seen ? (
-                          <i className="bi bi-check2-all text-blue-400"></i>
+              {msgs.map(
+                (msg, index) =>
+                  !msg.is_deleted &&
+                  msg.sender === user.username && (
+                    <div
+                      key={index}
+                      className={` relative w-fit min-w-[8%] max-w-[70%] px-2 py-1 pb-3.5 rounded-lg mb-1 ${
+                        msg.sender === user.username
+                          ? "bg-[#68479D] text-white self-end ml-auto group"
+                          : "bg-white self-start"
+                      }`}
+                    >
+                      <p className=" whitespace-pre-wrap text-sm">
+                        {msg.message}
+                      </p>
+                      {msg.sender === user.username ? (
+                        <div className="group absolute top-0 -left-[40%] cursor-pointer px-3 py-3">
+                          <div
+                            className="invisible opacity-0 ring-1 px-1.5 rounded-full py-0 text-gray-400 text-xs   group-hover:opacity-100 transition-opacity duration-150 delay-100  group-hover:visible"
+                            // onClick={() => handlemsgoptions(msg.id)}
+                            onClick={() => deleteMessageMe(msg.id)}
+                          >
+                            {/* invisible opacity-0 */}
+                            <i className="bi bi-chevron-down  "></i>
+                          </div>
+                        </div>
+                      ) : (
+                        ""
+                      )}
+                      <p
+                        className={`absolute ${
+                          msg.sender === user.username
+                            ? "right-5 "
+                            : "right-2.5 "
+                        } bottom-0.5 text-[9px] text-gray-300`}
+                      >
+                        {msg.time}
+                      </p>
+                      <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
+                        {msg.sender === user.username ? (
+                          <>
+                            {msg.seen ? (
+                              <i className="bi bi-check2-all text-blue-400"></i>
+                            ) : (
+                              <i className="bi bi-check2"></i>
+                            )}
+                          </>
                         ) : (
-                          <i className="bi bi-check2"></i>
+                          ""
                         )}
-                      </>
-                    ) : (
-                      ""
-                    )}
-                  </p>
-                </div>
-              ))}
+                      </p>
+                    </div>
+                  )
+              )}
             </div>
           ))}
 

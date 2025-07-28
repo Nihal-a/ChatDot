@@ -21,7 +21,7 @@ const Sidebar = ({ onselectUser }) => {
     const fetchUsers = async () => {
       try {
         const res = await fetchWithAuth(
-          "http://192.168.1.65:8000/api/get_users",
+          "http://192.168.18.144:8000/api/get_users",
           {
             method: "GET",
           }
@@ -48,7 +48,7 @@ const Sidebar = ({ onselectUser }) => {
   }, []);
 
   const profileUrl = user?.profile
-    ? `http://192.168.1.65:8000${user.profile}`
+    ? `http://192.168.18.144:8000${user.profile}`
     : "";
 
   const handleImageError = () => {

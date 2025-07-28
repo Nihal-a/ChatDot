@@ -102,6 +102,8 @@ connect(
     tlsCAFile=certifi.where()
 )
 
+# ChatMessage.objects(is_bothdeleted__exists=False).update(set__is_bothdeleted=False)  #to set new field in exsting datas
+
 
 
 
@@ -116,8 +118,8 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     'http://192.168.1.65:5173',
-    # "http://127.0.0.1:5173", 
     'http://192.168.18.144:5173',
+    # "http://127.0.0.1:5173", 
     
 ]
 

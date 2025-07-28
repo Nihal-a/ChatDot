@@ -44,7 +44,7 @@ const Signup = () => {
     setisOtpValid((prev) => ({ ...prev, valid: true, reason: "" }));
     try {
       setloading(true);
-      const res = await fetch("http://192.168.1.65:8000/api/email_verification", {
+      const res = await fetch("http://192.168.18.144:8000/api/email_verification", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -74,7 +74,7 @@ const Signup = () => {
   const otpVerification = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://192.168.1.65:8000/api/otp_verification", {
+      const res = await fetch("http://192.168.18.144:8000/api/otp_verification", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -115,7 +115,7 @@ const Signup = () => {
   const UserNameValidation = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://192.168.1.65:8000/api/username_validation", {
+      const res = await fetch("http://192.168.18.144:8000/api/username_validation", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -156,7 +156,7 @@ const Signup = () => {
         payload.append("username", formData.username);
         payload.append("email", formData.email);
         payload.append("password", formData.password);
-        const res = await fetch("http://192.168.1.65:8000/api/register", {
+        const res = await fetch("http://192.168.18.144:8000/api/register", {
           method: "POST",
 
           body: payload,
