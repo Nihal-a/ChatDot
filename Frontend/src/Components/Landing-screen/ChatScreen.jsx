@@ -6,15 +6,19 @@ import { useDispatch } from "react-redux";
 import { useState, useEffect, useRef } from "react";
 import { Logout } from "../Redux/Slice";
 import { fetchWithAuth } from "../../utils";
-import { format } from "date-fns";
+import { format, parse, differenceInMinutes, isSameDay } from "date-fns";
 import Cookies from "universal-cookie";
 import Frndrequest from "./modals/frndrequest";
+import DeleteConfirmModal from "./modals/DeleteConfirmModal";
 
 const ChatScreen = ({ selectedUser, onClose }) => {
   const { user } = useSelector((state) => state.chatdot);
 
   const [dropdown, setDropdown] = useState(false);
+  const [msgalterdropdown, setmsgalterdropdown] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState("bottom");
   const dropdownRef = useRef(null);
+  const msgalterdropdownRef = useRef(null);
 
   const cookies = new Cookies();
   const navigate = useNavigate();
@@ -28,6 +32,12 @@ const ChatScreen = ({ selectedUser, onClose }) => {
   const prevUserRef = useRef(null);
   const textareaRef = useRef();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [msgAlterOptions, setmsgAlterOptions] = useState({
+    msg_id: null,
+    alterPermissible: true,
+  });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedMsgId, setSelectedMsgId] = useState(null);
 
   const sendMessage = () => {
     if (input.trim() === "") return;
@@ -45,21 +55,95 @@ const ChatScreen = ({ selectedUser, onClose }) => {
     }
   };
 
+  const handleMsgOptions = (msgid) => {
+    const entry = Object.entries(messages).find(([_, msgs]) =>
+      msgs.some((msg) => msg.id === msgid)
+    );
+
+    if (!entry) return;
+
+    const [date, msgs] = entry;
+    const msg = msgs.find((m) => m.id === msgid);
+    if (!msg) return;
+
+    // Don't show options if user already deleted the message for themselves
+    if (msg.is_deleted || msg.is_bothdeleted) {
+      setmsgAlterOptions({
+        msg_id: msgid,
+        alterPermissible: false,
+      });
+      setmsgalterdropdown(true);
+      return;
+    }
+
+    const msgTime = parse(
+      `${date} ${msg.time}`,
+      "dd MMMM yyyy hh:mm a",
+      new Date()
+    );
+    const now = new Date();
+
+    const canEditOrDeleteForEveryone =
+      isSameDay(now, msgTime) && differenceInMinutes(now, msgTime) < 10;
+
+    setmsgAlterOptions({
+      msg_id: msgid,
+      alterPermissible: canEditOrDeleteForEveryone,
+    });
+    console.log(canEditOrDeleteForEveryone);
+
+    setTimeout(() => {
+      const msgElement = document.getElementById(`msg-${msgid}`);
+      if (msgElement) {
+        const rect = msgElement.getBoundingClientRect();
+        const screenHeight = window.innerHeight;
+
+        if (rect.top > screenHeight * 0.65) {
+          setDropdownPosition("top"); // Message near bottom → show dropdown above
+        } else {
+          setDropdownPosition("bottom"); // Message near top/mid → show dropdown below
+        }
+      }
+    }, 0);
+
+    setmsgalterdropdown(true);
+  };
+
+  const openDeleteModal = (msgId) => {
+    setSelectedMsgId(msgId);
+    setShowDeleteModal(true);
+  };
+
+  const deleteMessageBoth = (msgid) => {
+    const payload = {
+      type: "deleteBoth",
+      id: msgid,
+      user: user.username,
+    };
+    socketRef.current.send(JSON.stringify(payload));
+  };
+
   const deleteMessageMe = (msgid) => {
     console.log(msgid);
     socketRef.current.send(
       JSON.stringify({
         type: "deleteMe",
         id: msgid,
+        user: user.username,
       })
     );
   };
 
-  const deleteMessageBoth = (msgid) => {
+  const handleeditMsg = (msgid, msg) => {
+    console.log(msgid);
+    console.log(msg);
+  };
+
+  const editMsg = (msgid) => {
     console.log(msgid);
     socketRef.current.send(
       JSON.stringify({
-        type: "deleteBoth",
+        type: "edit",
         id: msgid,
       })
     );
@@ -155,27 +239,35 @@ const ChatScreen = ({ selectedUser, onClose }) => {
 
       if (data.type === "deleteMe") {
         const deletedMsgId = data.id;
-        console.log("🗑️ Deleting message with ID:", deletedMsgId);
+        const deletedByUser = data.user;
 
         setmessages((prevMessages) => {
           const updatedMessages = {};
 
           for (const date in prevMessages) {
-            const filtered = prevMessages[date].map((msg) =>
-              msg.id === deletedMsgId ? { ...msg, is_deleted: true } : msg
-            );
+            const filtered = prevMessages[date].map((msg) => {
+              const isDeletedBy = msg.is_deleted_by || []; // ensure it's an array
+
+              return msg.id === deletedMsgId
+                ? {
+                    ...msg,
+                    is_deleted_by: isDeletedBy.includes(deletedByUser)
+                      ? isDeletedBy
+                      : [...isDeletedBy, deletedByUser],
+                  }
+                : msg;
+            });
 
             updatedMessages[date] = filtered;
           }
 
           return updatedMessages;
         });
-
-        return;
       }
 
       if (data.type === "deleteBoth") {
         const deletedMsgId = data.id;
+        const deletedByUser = data.user;
         console.log("🗑️ Deleting message in both with ID:", deletedMsgId);
 
         setmessages((prevMessages) => {
@@ -187,7 +279,33 @@ const ChatScreen = ({ selectedUser, onClose }) => {
                 ? {
                     ...msg,
                     is_bothdeleted: true,
-                    message: "You deleted this message",
+                    is_bothdeleted_by: deletedByUser,
+                  }
+                : msg
+            );
+
+            updatedMessages[date] = filtered;
+          }
+
+          return updatedMessages;
+        });
+
+        return;
+      }
+
+      if (data.type === "edit") {
+        const editedessageId = data.id;
+        console.log("🗑️ edit message with ID:", deletedMsgId);
+
+        setmessages((prevMessages) => {
+          const updatedMessages = {};
+
+          for (const date in prevMessages) {
+            const filtered = prevMessages[date].map((msg) =>
+              msg.id === editedessageId
+                ? {
+                    ...msg,
+                    is_edited: true,
                   }
                 : msg
             );
@@ -209,8 +327,9 @@ const ChatScreen = ({ selectedUser, onClose }) => {
 
         const newMessage = {
           id: data.id,
-          is_deleted: false,
+          is_deleted_by: null,
           is_bothdeleted: false,
+          is_bothdeleted_by: null,
           sender: data.sender,
           receiver: data.receiver,
           message: data.message,
@@ -318,7 +437,9 @@ const ChatScreen = ({ selectedUser, onClose }) => {
               return {
                 id: msg.id,
                 is_deleted: msg.is_deleted,
+                is_deleted_by: msg.is_deleted_by,
                 is_bothdeleted: msg.is_bothdeleted,
+                is_bothdeleted_by: msg.is_bothdeleted_by,
                 sender: msg.sender,
                 receiver: msg.receiver,
                 message: msg.message,
@@ -357,6 +478,12 @@ const ChatScreen = ({ selectedUser, onClose }) => {
     function handleClickOutside(e) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setDropdown(false);
+      }
+      if (
+        msgalterdropdownRef.current &&
+        !msgalterdropdownRef.current.contains(e.target)
+      ) {
+        setmsgalterdropdown(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -481,62 +608,123 @@ const ChatScreen = ({ selectedUser, onClose }) => {
           Object.entries(messages).map(([date, msgs]) => (
             <div key={date}>
               <p className="text-center text-xs text-gray-400 my-3">{date}</p>
-              {msgs.map(
-                (msg, index) =>
-                  !msg.is_deleted &&
-                  // !msg.is_bothdeleted && 
-                  (
-                    // msg.sender === user.username &&
-                    <div
-                      key={index}
-                      className={` relative w-fit min-w-[8%] max-w-[70%] px-2 py-1 pb-3.5 rounded-lg mb-1 ${
-                        msg.sender === user.username
-                          ? "bg-[#68479D] text-white self-end ml-auto group "
-                          : "bg-white self-start"
-                      }`}
-                    >
-                      <p className=" whitespace-pre-wrap text-sm">
-                        {msg.message}
-                      </p>
-                      {msg.sender === user.username ? (
-                        <div className="group absolute top-0 -left-[40%] cursor-pointer px-3 py-3">
-                          <div
-                            className="invisible opacity-0 ring-1 px-1.5 rounded-full py-0 text-gray-400 text-xs   group-hover:opacity-100 transition-opacity duration-150 delay-100  group-hover:visible"
-                            // onClick={() => handlemsgoptions(msg.id)}
-                            onClick={() => deleteMessageBoth(msg.id)}
-                          >
-                            {/* invisible opacity-0 */}
-                            <i className="bi bi-chevron-down  "></i>
-                          </div>
+
+              {msgs.map((msg, index) => {
+                const isMe = msg.sender === user.username;
+                const deletedForMe = msg.is_deleted_by?.includes(user.username);
+                const deletedGlobally = msg.is_bothdeleted;
+                const deletedGlobally_by = msg.is_bothdeleted_by;
+                const edited = msg.is_edited;
+
+                // Skip rendering if deleted for this user
+                if (deletedForMe) return null;
+
+                return (
+                  <div
+                    id={`msg-${msg.id}`}
+                    key={index}
+                    className={`relative w-fit min-w-[8%] max-w-[70%] px-2 py-1 pb-3.5 rounded-lg mb-1 ${
+                      isMe
+                        ? "bg-[#68479D] text-white self-end ml-auto group"
+                        : "bg-white self-start"
+                    }`}
+                  >
+                    {/* Message text or deleted placeholder */}
+                    <p className="whitespace-pre-wrap text-sm">
+                      {deletedGlobally
+                        ? deletedGlobally_by === user.username
+                          ? "You deleted this message"
+                          : "This message was deleted"
+                        : msg.message}
+                    </p>
+
+                    {/* Options Dropdown (Only for sender) */}
+                    {isMe && !deletedGlobally && (
+                      <div className="group absolute top-0 -left-[40%] cursor-pointer px-3 py-3">
+                        <div
+                          className="invisible opacity-0 ring-1 px-1.5 rounded-full py-0 text-gray-400 text-xs group-hover:opacity-100 transition-opacity duration-150 delay-100 group-hover:visible"
+                          onClick={() => handleMsgOptions(msg.id)}
+                        >
+                          <i className="bi bi-chevron-down"></i>
                         </div>
-                      ) : (
-                        ""
-                      )}
-                      <p
-                        className={`absolute ${
-                          msg.sender === user.username
-                            ? "right-5 "
-                            : "right-2.5 "
-                        } bottom-0.5 text-[9px] text-gray-300`}
-                      >
-                        {msg.time}
-                      </p>
-                      <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
-                        {msg.sender === user.username ? (
-                          <>
-                            {msg.seen ? (
-                              <i className="bi bi-check2-all text-blue-400"></i>
-                            ) : (
-                              <i className="bi bi-check2"></i>
-                            )}
-                          </>
+
+                        {msgalterdropdown &&
+                          msgAlterOptions.msg_id === msg.id && (
+                            <div
+                              ref={msgalterdropdownRef}
+                              className={`absolute z-10 w-50 bg-white rounded-lg shadow-lg p-2 ${
+                                dropdownPosition === "top"
+                                  ? "bottom-0 mb-2 right-2"
+                                  : "top-0 mt-0 right-2"
+                              }`}
+                            >
+                              {/* Delete/Edit only if allowed */}
+                              {msgAlterOptions.alterPermissible && (
+                                <>
+                                  <div
+                                    className="w-full flex gap-2 items-center text-black cursor-pointer py-1"
+                                    onClick={() =>
+                                      handleeditMsg(msg.id, msg.message)
+                                    }
+                                  >
+                                    <i className="bi bi-pencil text-sm"></i>
+                                    <p className="text-black text-sm">Edit</p>
+                                  </div>
+                                  <div
+                                    className="w-full flex gap-2 items-center text-black border-b pb-1 py-1 cursor-pointer"
+                                    onClick={() => openDeleteModal(msg.id)}
+                                  >
+                                    <i className="bi bi-trash text-sm"></i>
+                                    <p className="text-black text-sm">
+                                      Delete for everyone
+                                    </p>
+                                  </div>
+                                </>
+                              )}
+                              <div
+                                className="w-full flex gap-2 items-center text-black mt-1 cursor-pointer py-1"
+                                onClick={() => deleteMessageMe(msg.id)}
+                              >
+                                <i className="bi bi-trash text-sm"></i>
+                                <p className="text-black text-sm">
+                                  Delete for me
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                      </div>
+                    )}
+
+                    {/* Time & Seen */}
+                    <p
+                      className={`absolute ${
+                        isMe ? "right-5" : "right-2.5"
+                      } bottom-0.5 text-[9px] text-gray-300`}
+                    >
+                      {msg.time}
+                    </p>
+
+                    <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
+                      {isMe &&
+                        (msg.seen ? (
+                          <i className="bi bi-check2-all text-blue-400"></i>
                         ) : (
-                          ""
-                        )}
-                      </p>
-                    </div>
-                  )
-              )}
+                          <i className="bi bi-check2"></i>
+                        ))}
+                    </p>
+
+                    {edited ? (
+                      <>
+                        <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
+                          edited
+                        </p>
+                      </>
+                    ) : (
+                      ""
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ))}
 
@@ -560,6 +748,12 @@ const ChatScreen = ({ selectedUser, onClose }) => {
         <Frndrequest
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
+        />
+        <DeleteConfirmModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onDelete={deleteMessageBoth}
+          msgId={selectedMsgId}
         />
       </div>
     </>

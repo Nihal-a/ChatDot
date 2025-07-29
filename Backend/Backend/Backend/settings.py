@@ -102,9 +102,17 @@ connect(
     tlsCAFile=certifi.where()
 )
 
-# ChatMessage.objects(is_bothdeleted__exists=False).update(set__is_bothdeleted=False)  #to set new field in exsting datas
+ChatMessage.objects(is_bothdeleted_by__exists=False).update(set__is_bothdeleted_by="")  #to set new field in exsting datas
+# ChatMessage.objects(is_deleted_by__exists=False).update(set__is_deleted_by=[])
+
+from mongoengine import *
 
 
+for msg in ChatMessage.objects():
+    if isinstance(msg.is_deleted_by, str):
+        msg.is_deleted_by = [msg.is_deleted_by]
+        msg.save()
+    
 
 
 import os

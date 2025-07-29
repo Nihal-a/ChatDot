@@ -67,31 +67,61 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         try:
             data = json.loads(text_data)
+          
             msg_type = data.get("type", "message")
+            print(data)
+
 
             if msg_type=="deleteMe":
+                print(data),
                 msg_id=data.get("id")
-                ChatMessage.objects(id=ObjectId(msg_id)).update_one(set__is_deleted=True)
-              
+                user=data.get("user")
+                msg = ChatMessage.objects(id=ObjectId(msg_id)).first()
+                if isinstance(msg.is_deleted_by, list):
+                    msg.update(push__is_deleted_by=user)
+                else:
+                    msg.update(set__is_deleted_by=[user])
 
+              
                 await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {
-                        "type": "delete_me_message_broadcast",
-                        "id": msg_id,
-                    }
-                )
+                        self.room_group_name,
+                        {
+                            "type": "delete_me_message_broadcast",
+                            "id": msg_id,
+                            "user": user,
+                        }
+                    )
+                
+
 
 
             if msg_type=="deleteBoth":
+                print(data)
                 msg_id=data.get("id")
+                user=data.get("user")
                 ChatMessage.objects(id=ObjectId(msg_id)).update_one(set__is_bothdeleted=True)
+                ChatMessage.objects(id=ObjectId(msg_id)).update_one(set__is_bothdeleted_by=user)
               
 
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
                         "type": "delete_both_message_broadcast",
+                        "id": msg_id,
+                        "user": user,
+                    }
+                )
+
+            if msg_type=="edit":
+                print(data)
+                msg_id=data.get("id")
+                ChatMessage.objects(id=ObjectId(msg_id)).update_one(set__is_edited=True)
+              
+
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        "type": "edit_message_broadcast",
                         "id": msg_id,
                     }
                 )
@@ -122,6 +152,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 'message_sender': receiver,  # whose messages were seen
                             }
                         )
+
 
             elif msg_type == "message":
                 message = data['message']
@@ -181,6 +212,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             "type": "deleteMe",
             "id": msg_id,
+            "user": event["user"],
         }))
 
 
@@ -189,5 +221,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         await self.send(text_data=json.dumps({
             "type": "deleteBoth",
+            "id": msg_id,
+            "user": event["user"],
+        }))
+
+
+    async def edit_message_broadcast(self, event):
+        msg_id = event["id"]
+
+        await self.send(text_data=json.dumps({
+            "type": "edit",
             "id": msg_id,
         }))

@@ -315,7 +315,10 @@ def get_messages(request):
             'receiver': msg.receiver,
             'message': msg.message,
             'datetime': local_dt.strftime("%H:%M:%S"),
-            'seen': msg.seen
+            'seen': msg.seen,
+            'is_deleted_by': msg.is_deleted_by,
+            'is_bothdeleted': msg.is_bothdeleted,
+            'is_bothdeleted_by': msg.is_bothdeleted_by,
         })
 
     return Response(grouped, status=status.HTTP_200_OK)
