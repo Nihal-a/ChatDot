@@ -1,21 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+import { fetchWithAuth } from "../../../utils";
 
 const Frndrequest = ({ isOpen, onClose }) => {
-  const [search, setsearch] = useState("");
-  const dummyUsers = [
-    { id: 1, name: "Alice", message: "Hello there!" },
-    { id: 2, name: "Bob", message: "How are you doing?" },
-    { id: 3, name: "Charlie", message: "Let's catch up later." },
-    { id: 4, name: "Charlie", message: "Let's catch up later." },
-    { id: 5, name: "Charlie", message: "Let's catch up later." },
-    { id: 6, name: "Charlie", message: "Let's catch up later." },
-    { id: 7, name: "Charlie", message: "Let's catch up later." },
-    { id: 8, name: "Charlie", message: "Let's catch up later." },
-    { id: 9, name: "Charlie", message: "Let's catch up later." },
-  ];
-
   if (!isOpen) return null;
+  const { user } = useSelector((state) => state.chatdot);
+  const [search, setsearch] = useState("");
+  const [searchResults, setsearchResults] = useState([]);
 
+  useEffect(() => {
+    const searchuser = async () => {
+      try {
+        const res = await fetchWithAuth(
+          "http://192.168.18.144:8000/api/search_users",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ search: search }),
+          }
+        );
+
+        const data = await res.json();
+        console.log(data);
+
+        if (res.status === 200) {
+          setsearchResults(data);
+        } else {
+          console.error(
+            "Failed to fetch users:",
+            data.detail || res.statusText
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
+    };
+    searchuser();
+  }, [search]);
+
+  console.log(search);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-[50%] h-[70%] shadow-lg flex flex-col">
@@ -39,39 +64,36 @@ const Frndrequest = ({ isOpen, onClose }) => {
               className="flex-1 overflow-y-auto pt-3 px-3 rounded-md"
               style={{ scrollbarWidth: "none" }}
             >
-              {dummyUsers.map((user, index) => (
-                <div
-                  key={index}
-                  className="shadow-[0_4px_20px_rgba(255,255,255,0.1)]
+              <div
+                className="shadow-[0_4px_20px_rgba(255,255,255,0.1)]
                             hover:shadow-[0_6px_25px_rgba(255,255,255,0.15)]
                             transition-shadow duration-300 flex items-center justify-between w-full text-white rounded-md p-3 mb-4"
-                >
-                  {/* Avatar */}
-                  <div className="ring-1 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0">
-                    <img
-                      src=""
-                      alt="profile"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-
-                  {/* User Info */}
-                  <div className="flex flex-col ml-4 flex-grow min-w-0">
-                    <p className="truncate">Mohammed Nihal</p>
-                    <p className="truncate">nihal</p>
-                  </div>
-
-                  {/* Buttons */}
-                  <div className="flex flex-col mr-3 gap-1 flex-shrink-0">
-                    <button className="rounded-md py-0.5 px-2 ring-1 ring-green-700 bg-green-700 text-white text-sm font-medium hover:bg-green-500 cursor-pointer">
-                      CONFIRM
-                    </button>
-                    <button className="rounded-md py-0.5 px-2 ring-1 ring-red-700 bg-red-700 text-white text-sm font-medium hover:bg-red-500 cursor-pointer">
-                      REJECT
-                    </button>
-                  </div>
+              >
+                {/* Avatar */}
+                <div className="ring-1 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0">
+                  <img
+                    src=""
+                    alt="profile"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-              ))}
+
+                {/* User Info */}
+                <div className="flex flex-col ml-4 flex-grow min-w-0">
+                  <p className="truncate">Mohammed Nihal</p>
+                  <p className="truncate">nihal</p>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex flex-col mr-3 gap-1 flex-shrink-0">
+                  <button className="rounded-md py-0.5 px-2 ring-1 ring-green-700 bg-green-700 text-white text-sm font-medium hover:bg-green-500 cursor-pointer">
+                    CONFIRM
+                  </button>
+                  <button className="rounded-md py-0.5 px-2 ring-1 ring-red-700 bg-red-700 text-white text-sm font-medium hover:bg-red-500 cursor-pointer">
+                    REJECT
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           <div className="flex flex-col min-h-0">
@@ -91,31 +113,28 @@ const Frndrequest = ({ isOpen, onClose }) => {
               className="flex-1 overflow-y-auto pt-3 px-3 rounded-md ml-3"
               style={{ scrollbarWidth: "none" }}
             >
-              {dummyUsers.map((user, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between w-full text-white ring-1 rounded-md p-3 mb-4"
-                >
-                  {/* Avatar */}
-                  <div className="ring-1 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0">
-                    <img
-                      src=""
-                      alt="profile"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-
-                  {/* User Info */}
-                  <div className="flex flex-col ml-4 flex-grow min-w-0">
-                    <p className="truncate">Mohammed Nihal</p>
-                    <p className="truncate">nihal</p>
-                  </div>
-
-                  <button className="rounded-md py-0.5 px-2 ring-1 ring-[#68479D] bg-[#68479D] text-white text-sm font-medium hover:bg-[#7c62a5] flex-shrink-0">
-                    CANCEL
-                  </button>
+              {/* {searchResults.map((user) => ( */}
+              <div className="flex items-center justify-between w-full text-white ring-1 rounded-md p-3 mb-4">
+                {/* Avatar */}
+                <div className="ring-1 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0">
+                  <img
+                    src=""
+                    alt="profile"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-              ))}
+
+                {/* User Info */}
+                <div className="flex flex-col ml-4 flex-grow min-w-0">
+                  <p className="truncate">Mohammed Nihal</p>
+                  <p className="truncate">nihal</p>
+                </div>
+
+                <button className="rounded-md py-0.5 px-2 ring-1 ring-[#68479D] bg-[#68479D] text-white text-sm font-medium hover:bg-[#7c62a5] flex-shrink-0">
+                  CANCEL
+                </button>
+              </div>
+              {/* ))} */}
             </div>
           </div>
         </div>

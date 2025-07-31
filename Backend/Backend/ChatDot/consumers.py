@@ -30,6 +30,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.room_group_name = f'chat_{self.room_name}'
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
+
+        self.user_group_name = f"user_{self.user.username}"
+        await self.channel_layer.group_add(self.user_group_name, self.channel_name)
         
         # 🔥 NEW: When user connects, mark all unread messages from other user as seen
         participants = self.room_name.split('_')
@@ -63,6 +66,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         if hasattr(self, 'room_group_name'):
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        
+        if hasattr(self, 'user_group_name'):
+            await self.channel_layer.group_discard(self.user_group_name, self.channel_name)
 
     async def receive(self, text_data):
         try:
@@ -115,7 +121,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if msg_type=="edit":
                 print(data)
                 msg_id=data.get("id")
-                new_msg=data.ge("new_msg")
+                new_msg=data.get("new_msg")
                 ChatMessage.objects(id=ObjectId(msg_id)).update_one(set__message=new_msg)
                 ChatMessage.objects(id=ObjectId(msg_id)).update_one(set__is_edited=True)
               
@@ -171,6 +177,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     seen=False  # Always start as false
                 )
                 await sync_to_async(chat_message.save)()
+
+                
+
+                await self.send_sidebar_update(
+                    receiver_username=receiver,
+                    sender_username=self.user.username,
+                    message=message,
+                    timestamp=current_time
+                )
              
 
                 # Then broadcast to room
@@ -189,6 +204,31 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             print("Error in receive():", e)
 
+
+    async def send_sidebar_update(self, receiver_username, sender_username, message, timestamp):
+        # Count unseen messages from sender to receiver
+        unseen_count = await sync_to_async(ChatMessage.objects.filter(
+            sender=sender_username,
+            receiver=receiver_username,
+            seen=False
+        ).count)()
+        print(unseen_count)
+
+
+        await self.channel_layer.group_send(
+            f"user_{receiver_username}",
+            {
+                "type": "sidebar_update",
+                "data": {
+                    "username": sender_username,
+                    "last_msg": message,
+                    "last_msg_time": timestamp.isoformat(),
+                    "unread_count": unseen_count
+                }
+            }
+        )
+
+
     async def chat_message(self, event):
         """Handle regular chat messages"""
         await self.send(text_data=json.dumps({
@@ -199,6 +239,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'message': event['message'],
             'datetime': event['datetime']
         }))
+
 
     async def seen_update(self, event):
         """Handle seen status updates"""
@@ -237,4 +278,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
             "type": "edit",
             "id": msg_id,
             "new_msg":new_msg
+        }))
+
+
+    async def sidebar_update(self, event):
+        print("oooooooookkkkkkk")
+        print(event["data"])
+        await self.send(text_data=json.dumps({
+            "type": "sidebar_update",
+            "data": event["data"]
         }))

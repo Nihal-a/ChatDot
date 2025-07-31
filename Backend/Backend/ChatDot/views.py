@@ -20,6 +20,8 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from django.views.decorators.csrf import csrf_exempt
 from collections import defaultdict
 from django.utils.timezone import localtime,make_aware, is_naive
+from django.db.models import Q
+from django.http import JsonResponse
 
 @csrf_exempt
 @api_view(['POST'])
@@ -147,7 +149,7 @@ def Login(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def logout_view(request):
     refresh_token = request.COOKIES.get("refresh_token")
 
@@ -328,6 +330,7 @@ def get_messages(request):
 @permission_classes([AllowAny])
 def get_users(request):
     users = User.objects.all()
+
     data = [
         {
             'id': user.id,
@@ -403,6 +406,37 @@ def change_password(request):
         return Response(
             {"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST,
         )
+
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def search_users(request):
+    search = request.data.get("search")
+    print(search)
+   
+
+    if not search:
+        return Response({"results": []})
+
+    # Filter by username or name (case-insensitive contains)
+    users = User.objects.filter(
+        Q(username__icontains=search) | Q(fullname__icontains=search)
+    )
+
+    results = [
+        {
+            "id": user.id,
+            "username": user.username,
+            # "profile":user.profile,
+            "name": user.fullname,
+            "email": user.email,
+        }
+        for user in users
+    ]
+
+    return Response({"results": results},status=status.HTTP_200_OK)
+
 
 
 @api_view(['POST'])

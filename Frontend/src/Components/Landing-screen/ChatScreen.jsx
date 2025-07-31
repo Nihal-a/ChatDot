@@ -11,7 +11,7 @@ import Cookies from "universal-cookie";
 import Frndrequest from "./modals/frndrequest";
 import DeleteConfirmModal from "./modals/DeleteConfirmModal";
 
-const ChatScreen = ({ selectedUser, onClose }) => {
+const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
   const { user } = useSelector((state) => state.chatdot);
 
   const [dropdown, setDropdown] = useState(false);
@@ -128,7 +128,6 @@ const ChatScreen = ({ selectedUser, onClose }) => {
   };
 
   const deleteMessageMe = (msgid) => {
-    console.log(msgid);
     socketRef.current.send(
       JSON.stringify({
         type: "deleteMe",
@@ -144,6 +143,8 @@ const ChatScreen = ({ selectedUser, onClose }) => {
       edit: true,
       msgid: msgid,
     });
+    setmsgalterdropdown(false);
+    return;
   };
 
   const editMsg = () => {
@@ -410,6 +411,30 @@ const ChatScreen = ({ selectedUser, onClose }) => {
             }
           }, 100);
         }
+      }
+
+      if (data.type === "sidebar_update") {
+        const updatedUser = data.data;
+        console.log("sidebar update");
+        // console.log(updatedUser);
+        onlatestMsg(updatedUser);
+
+        // Update the sidebar user info
+        // setAllUser((prevUsers) => {
+        //   const existing = prevUsers.find(
+        //     (u) => u.username === updatedUser.username
+        //   );
+
+        //   if (existing) {
+        //     return prevUsers.map((user) =>
+        //       user.username === updatedUser.username
+        //         ? { ...user, ...updatedUser }
+        //         : user
+        //     );
+        //   } else {
+        //     return [...prevUsers, updatedUser];
+        //   }
+        // });
       }
     };
 
