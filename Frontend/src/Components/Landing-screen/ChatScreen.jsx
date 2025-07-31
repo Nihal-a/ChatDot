@@ -38,6 +38,10 @@ const ChatScreen = ({ selectedUser, onClose }) => {
   });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedMsgId, setSelectedMsgId] = useState(null);
+  const [isEditingMsg, setisEditingMsg] = useState({
+    edit: false,
+    msgid: null,
+  });
 
   const sendMessage = () => {
     if (input.trim() === "") return;
@@ -135,27 +139,50 @@ const ChatScreen = ({ selectedUser, onClose }) => {
   };
 
   const handleeditMsg = (msgid, msg) => {
-    console.log(msgid);
-    console.log(msg);
+    setinput(msg);
+    setisEditingMsg({
+      edit: true,
+      msgid: msgid,
+    });
   };
 
-  const editMsg = (msgid) => {
-    console.log(msgid);
+  const editMsg = () => {
+    if (input.trim() === "") return;
     socketRef.current.send(
       JSON.stringify({
         type: "edit",
-        id: msgid,
+        id: isEditingMsg.msgid,
+        new_msg: input,
       })
     );
+    setinput("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+    setisEditingMsg({
+      edit: false,
+      msgid: null,
+    });
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      if (e.shiftKey) {
-        return;
-      } else {
-        e.preventDefault();
-        sendMessage();
+    if (isEditingMsg.edit == true) {
+      if (e.key === "Enter") {
+        if (e.shiftKey) {
+          return;
+        } else {
+          e.preventDefault();
+          editMsg();
+        }
+      }
+    } else {
+      if (e.key === "Enter") {
+        if (e.shiftKey) {
+          return;
+        } else {
+          e.preventDefault();
+          sendMessage();
+        }
       }
     }
   };
@@ -295,7 +322,8 @@ const ChatScreen = ({ selectedUser, onClose }) => {
 
       if (data.type === "edit") {
         const editedessageId = data.id;
-        console.log("🗑️ edit message with ID:", deletedMsgId);
+        const new_msg = data.new_msg;
+        console.log("🗑️ edit message with ID:", editedessageId);
 
         setmessages((prevMessages) => {
           const updatedMessages = {};
@@ -306,6 +334,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
                 ? {
                     ...msg,
                     is_edited: true,
+                    message: new_msg,
                   }
                 : msg
             );
@@ -445,6 +474,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
                 message: msg.message,
                 time: formattedTime,
                 seen: Boolean(msg.seen),
+                is_edited: msg.is_edited,
               };
             });
           }
@@ -505,6 +535,13 @@ const ChatScreen = ({ selectedUser, onClose }) => {
     return (
       <>
         <div className="h-[8%] flex items-center justify-end px-4 py-2 gap-4 bg-white border-b border-gray-200">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="px-3 py-0.5 rounded-md font-medium ring-1 ring-[#68479D] focus:outline-0 text-white font-[poppins] active:bg-[#7c62a5] bg-[#68479D]"
+            type="button"
+          >
+            Add Friends
+          </button>
           <i className="bi bi-bell text-xl"></i>
           <div
             onClick={() => setDropdown(!dropdown)}
@@ -616,7 +653,6 @@ const ChatScreen = ({ selectedUser, onClose }) => {
                 const deletedGlobally_by = msg.is_bothdeleted_by;
                 const edited = msg.is_edited;
 
-                // Skip rendering if deleted for this user
                 if (deletedForMe) return null;
 
                 return (
@@ -626,10 +662,10 @@ const ChatScreen = ({ selectedUser, onClose }) => {
                     className={`relative w-fit min-w-[8%] max-w-[70%] px-2 py-1 pb-3.5 rounded-lg mb-1 ${
                       isMe
                         ? "bg-[#68479D] text-white self-end ml-auto group"
-                        : "bg-white self-start"
+                        : "bg-white self-start group"
                     }`}
                   >
-                    {/* Message text or deleted placeholder */}
+                    {/* Message text */}
                     <p className="whitespace-pre-wrap text-sm">
                       {deletedGlobally
                         ? deletedGlobally_by === user.username
@@ -638,9 +674,13 @@ const ChatScreen = ({ selectedUser, onClose }) => {
                         : msg.message}
                     </p>
 
-                    {/* Options Dropdown (Only for sender) */}
-                    {isMe && !deletedGlobally && (
-                      <div className="group absolute top-0 -left-[40%] cursor-pointer px-3 py-3">
+                    {/* Options Dropdown (Sender & Receiver) */}
+                    {!deletedGlobally && (
+                      <div
+                        className={`absolute top-0 ${
+                          isMe ? "-left-[45px]" : "-right-[45px]"
+                        } px-3 py-3 cursor-pointer`}
+                      >
                         <div
                           className="invisible opacity-0 ring-1 px-1.5 rounded-full py-0 text-gray-400 text-xs group-hover:opacity-100 transition-opacity duration-150 delay-100 group-hover:visible"
                           onClick={() => handleMsgOptions(msg.id)}
@@ -654,12 +694,16 @@ const ChatScreen = ({ selectedUser, onClose }) => {
                               ref={msgalterdropdownRef}
                               className={`absolute z-10 w-50 bg-white rounded-lg shadow-lg p-2 ${
                                 dropdownPosition === "top"
-                                  ? "bottom-0 mb-2 right-2"
-                                  : "top-0 mt-0 right-2"
+                                  ? isMe
+                                    ? "bottom-0 mb-2 right-2"
+                                    : "bottom-0 mb-2 left-2"
+                                  : isMe
+                                  ? "top-0 mt-0 right-2"
+                                  : "top-0 mt-0 left-2"
                               }`}
                             >
-                              {/* Delete/Edit only if allowed */}
-                              {msgAlterOptions.alterPermissible && (
+                              {/* Sender options */}
+                              {msgAlterOptions.alterPermissible && isMe && (
                                 <>
                                   <div
                                     className="w-full flex gap-2 items-center text-black cursor-pointer py-1"
@@ -681,6 +725,8 @@ const ChatScreen = ({ selectedUser, onClose }) => {
                                   </div>
                                 </>
                               )}
+
+                              {/* Both sender and receiver */}
                               <div
                                 className="w-full flex gap-2 items-center text-black mt-1 cursor-pointer py-1"
                                 onClick={() => deleteMessageMe(msg.id)}
@@ -703,7 +749,6 @@ const ChatScreen = ({ selectedUser, onClose }) => {
                     >
                       {msg.time}
                     </p>
-
                     <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
                       {isMe &&
                         (msg.seen ? (
@@ -712,15 +757,10 @@ const ChatScreen = ({ selectedUser, onClose }) => {
                           <i className="bi bi-check2"></i>
                         ))}
                     </p>
-
-                    {edited ? (
-                      <>
-                        <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
-                          edited
-                        </p>
-                      </>
-                    ) : (
-                      ""
+                    {edited && (
+                      <p className="absolute right-16 bottom-0.5 text-[9px] text-gray-300">
+                        <i className="bi bi-pencil"></i>
+                      </p>
                     )}
                   </div>
                 );
@@ -742,7 +782,7 @@ const ChatScreen = ({ selectedUser, onClose }) => {
           className="w-[97%] py-2.5 px-4 text-sm rounded-xl focus:ring-0 focus:outline-none bg-gray-100 resize-none overflow-y-auto max-h-32"
           rows={1}
         />
-        <button onClick={sendMessage}>
+        <button onClick={isEditingMsg.edit ? editMsg : sendMessage}>
           <VscSend className="text-xl text-[#68479D]" />
         </button>
         <Frndrequest

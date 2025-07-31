@@ -115,6 +115,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if msg_type=="edit":
                 print(data)
                 msg_id=data.get("id")
+                new_msg=data.ge("new_msg")
+                ChatMessage.objects(id=ObjectId(msg_id)).update_one(set__message=new_msg)
                 ChatMessage.objects(id=ObjectId(msg_id)).update_one(set__is_edited=True)
               
 
@@ -123,6 +125,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     {
                         "type": "edit_message_broadcast",
                         "id": msg_id,
+                        "new_msg":new_msg,
                     }
                 )
 
@@ -228,8 +231,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def edit_message_broadcast(self, event):
         msg_id = event["id"]
+        new_msg=event["new_msg"]
 
         await self.send(text_data=json.dumps({
             "type": "edit",
             "id": msg_id,
+            "new_msg":new_msg
         }))

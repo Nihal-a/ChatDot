@@ -311,6 +311,7 @@ def get_messages(request):
         grouped[date_key].append({
             'id': str(msg.id),
             'is_deleted':msg.is_deleted,
+            'is_edited':msg.is_edited,
             'sender': msg.sender,
             'receiver': msg.receiver,
             'message': msg.message,
