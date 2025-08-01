@@ -44,13 +44,16 @@ const Signup = () => {
     setisOtpValid((prev) => ({ ...prev, valid: true, reason: "" }));
     try {
       setloading(true);
-      const res = await fetch("http://192.168.18.144:8000/api/email_verification", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ...formData, email }),
-      });
+      const res = await fetch(
+        "http://192.168.18.144:8000/api/email_verification",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ...formData, email }),
+        }
+      );
 
       const data = await res.json();
 
@@ -74,13 +77,16 @@ const Signup = () => {
   const otpVerification = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://192.168.18.144:8000/api/otp_verification", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+      const res = await fetch(
+        "http://192.168.18.144:8000/api/otp_verification",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        }
+      );
 
       const data = await res.json();
 
@@ -115,13 +121,16 @@ const Signup = () => {
   const UserNameValidation = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://192.168.18.144:8000/api/username_validation", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+      const res = await fetch(
+        "http://192.168.18.144:8000/api/username_validation",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        }
+      );
 
       const data = await res.json();
 
@@ -150,6 +159,7 @@ const Signup = () => {
     } else {
       setloading(true);
       try {
+        console.log(formData.profile);
         const payload = new FormData();
         payload.append("profile", formData.profile);
         payload.append("name", formData.name);
@@ -223,7 +233,7 @@ const Signup = () => {
                         ></i>
                       )}
                       {isEmailAuthenticated
-                        ? "Create your username and password"
+                        ? "Claim your username and create password"
                         : "Please enter your authenticate code"}
                     </p>
                     <p className=" text-sm   font-light font-[poppins] pe-[36%]">
@@ -234,7 +244,7 @@ const Signup = () => {
                   </div>
                   {isEmailAuthenticated ? (
                     <div
-                      className="relative w-[80px] h-[80px] rounded-full ring-1 ring-gray-300 shadow-md cursor-pointer overflow-hidden"
+                      className="relative w-[80px] h-[80px] rounded-full ring-1 ring-gray-300 shadow-md cursor-pointer overflow-hidden mt-4"
                       onClick={triggerFileInput}
                     >
                       {profilepic ? (

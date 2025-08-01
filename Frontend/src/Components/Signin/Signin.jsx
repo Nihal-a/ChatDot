@@ -22,7 +22,8 @@ const Signin = () => {
     e.preventDefault();
     if (formData.password.length < 8) {
       return;
-    }`  `
+    }
+    `  `;
     try {
       setloading(true);
       const res = await fetch("http://192.168.18.144:8000/api/login", {
@@ -45,7 +46,7 @@ const Signin = () => {
             username: data.user.username,
             name: data.user.name,
             email: data.user.email,
-            profile: `http:/127.0.0.1:8000${data.user.profile}`,
+            profile: `http://127.0.0.1:8000${data.user.profile}`,
           })
         );
         navigate("/");

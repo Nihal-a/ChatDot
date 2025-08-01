@@ -18,6 +18,9 @@ urlpatterns = [
     path('api/otpfor_resetpass',otpfor_resetpass),
     path('api/change_password',change_password),
     path('api/search_users',search_users),
+    path('api/add_friend',add_friend),
+    path('api/cancel_friend_request',cancel_friend_request),
+    path('api/get_all_request',get_all_request),
     path('api/fake_view',fake_view),
     ]
 

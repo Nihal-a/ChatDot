@@ -22,6 +22,7 @@ from collections import defaultdict
 from django.utils.timezone import localtime,make_aware, is_naive
 from django.db.models import Q
 from django.http import JsonResponse
+import re
 
 @csrf_exempt
 @api_view(['POST'])
@@ -68,7 +69,13 @@ def Register(request):
 
     user=User.objects.create_user(email=email,password=password,username=username)
     user.fullname=name
-    user.profile=profile
+
+    if profile:  
+        user.profile = profile
+        print("Added")
+    else:
+        user.profile = None
+   
     user.is_active=True
     user.save()
 
@@ -322,6 +329,7 @@ def get_messages(request):
             'is_deleted_by': msg.is_deleted_by,
             'is_bothdeleted': msg.is_bothdeleted,
             'is_bothdeleted_by': msg.is_bothdeleted_by,
+            'is_active': msg.is_active,
         })
 
     return Response(grouped, status=status.HTTP_200_OK)
@@ -412,31 +420,95 @@ def change_password(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def search_users(request):
-    search = request.data.get("search")
-    print(search)
+    search =re.escape(request.data.get("search")) 
+    is_from = request.data.get("from")
    
-
     if not search:
         return Response({"results": []})
+ 
+    search_regex = r'\b' + search 
 
     # Filter by username or name (case-insensitive contains)
     users = User.objects.filter(
-        Q(username__icontains=search) | Q(fullname__icontains=search)
-    )
+        # Q(username__icontains=search) | Q(fullname__icontains=search).
+         Q(username__iregex=search_regex) | Q(fullname__iregex=search_regex)
+    ).exclude(id=is_from)
+
+
+
 
     results = [
-        {
-            "id": user.id,
-            "username": user.username,
-            # "profile":user.profile,
-            "name": user.fullname,
-            "email": user.email,
-        }
-        for user in users
+    {
+        "id": user.id,
+        "username": user.username,
+        "profile": getattr(user.profile, 'url', "ok") if user.profile and user.profile.name else None,
+        "name": user.fullname,
+        "email": user.email,
+        "is_friend": Connections.objects.filter(
+            __raw__={
+                "$or": [
+                    {"me": is_from, "my_friend": user.id},
+                    {"me": user.id, "my_friend": is_from}
+                ]
+            }
+        ).first() is not None,
+
+        "is_already_requested": FriendRequests.objects.filter(
+            Q(requested_by=is_from, requested_to=user.id) |
+            Q(requested_by=user.id, requested_to=is_from)
+        ).exists()
+    }
+    for user in users
     ]
 
     return Response({"results": results},status=status.HTTP_200_OK)
 
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def add_friend(request):
+    is_to = request.data.get("to")
+    is_from = request.data.get("from")
+
+
+    FriendRequests(requested_by=User.objects.get(id=is_from), requested_to=is_to).save()
+    
+
+    return Response(status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def cancel_friend_request(request):
+    is_to = request.data.get("to")
+    is_from = request.data.get("from")
+    print(is_to)
+    print(is_from)
+    FriendRequests.objects.filter(
+    Q(requested_by=is_from, requested_to=is_to) |
+    Q(requested_by=is_to, requested_to=is_from)
+    ).delete()
+    
+
+    return Response(status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def get_all_request(request):
+    user = request.data.get("user")
+    friend_requests = FriendRequests.objects.filter(requested_by=User.objects.get(id=user))
+    
+    requests=[]
+    requests=[
+    {
+        # "id":
+    }
+    for req in friend_requests
+    ]
+
+
+    return Response({"requests": friend_requests },status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -444,3 +516,4 @@ def search_users(request):
 def fake_view(request):
    
     return Response(status=status.HTTP_200_OK)
+

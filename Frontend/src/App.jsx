@@ -11,7 +11,7 @@ import Chat from "./Components/Chat.jsx";
 import ChatRoom from "./Components/Chatroom.jsx";
 import PrivateRoute from "./PrivateRoute.jsx";
 import ForgotPass from "./Components/ForgotPass/ForgotPass.jsx";
-import Frndrequest from "./Components/Landing-screen/modals/frndrequest.jsx";
+import Test from "./test.jsx";
 
 function App() {
   const [refreshDone, setRefreshDone] = useState(false);
@@ -134,6 +134,7 @@ function App() {
   return (
     <>
       <Routes>
+        <Route path="/test" element={<Test />} />
         <Route
           path="/"
           element={
@@ -146,7 +147,7 @@ function App() {
         <Route path="/signin" element={<Signin />} />
         <Route path="/forgotpass" element={<ForgotPass />} />
         <Route path="/chat" element={<Chat />} />
-        <Route path="/test" element={<Frndrequest />} />
+
         <Route
           path="/chatroom"
           element={

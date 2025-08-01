@@ -17,8 +17,6 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
     setisSelected(user.name);
   };
 
-  console.log(allusers, "all data of users");
-
   useEffect(() => {
     if (!latestMsg || !Array.isArray(latestMsg)) return;
 
@@ -129,7 +127,7 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
             className={`flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md cursor-pointer ${
               isSelected === user.name ? "bg-gray-100" : ""
             }`}
-            key={user.name}
+            key={user.id}
             onClick={() => handleselectedUser(user)}
           >
             <div className="w-[60px] h-[50px] flex items-center justify-center bg-amber-100 text-xl font-bold rounded-full overflow-hidden">
@@ -151,7 +149,7 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
               </div>
               <div className="flex flex-col gap-1.5 ">
                 <p className="text-xs  text-gray-400">{user.formattedTime}</p>
-                <p className="text-xs  text-gray-400">{user.formattedTime}</p>{" "}
+                <p className="text-xs  text-gray-400"></p>{" "}
               </div>
             </div>
           </div>

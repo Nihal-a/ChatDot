@@ -4,12 +4,102 @@ import { fetchWithAuth } from "../../../utils";
 
 const Frndrequest = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
-  const { user } = useSelector((state) => state.chatdot);
   const [search, setsearch] = useState("");
   const [searchResults, setsearchResults] = useState([]);
+  const [friendRequests, setfriendRequests] = useState([]);
+  const { user } = useSelector((state) => state.chatdot);
+
+  const handleaddfriend = async (to_id) => {
+    try {
+      const res = await fetchWithAuth(
+        "http://192.168.18.144:8000/api/add_friend",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ from: user.id, to: to_id }),
+        }
+      );
+
+      if (res.status === 200) {
+        setsearchResults((prev) =>
+          prev.map((user) =>
+            user.id === to_id ? { ...user, is_already_requested: true } : user
+          )
+        );
+      } else {
+        console.error("Failed to add friends:", data.detail || res.statusText);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  };
+
+  const handleCancelRequest = async (to_id) => {
+    try {
+      const res = await fetchWithAuth(
+        "http://192.168.18.144:8000/api/cancel_friend_request",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ from: user.id, to: to_id }),
+        }
+      );
+
+      if (res.status === 200) {
+        setsearchResults((prev) =>
+          prev.map((user) =>
+            user.id === to_id ? { ...user, is_already_requested: false } : user
+          )
+        );
+      } else {
+        console.error("Failed to add friends:", data.detail || res.statusText);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  };
+
+  useEffect(() => {
+    const get_all_request = async () => {
+      try {
+        const res = await fetchWithAuth(
+          "http://192.168.18.144:8000/api/get_all_request",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ user: user.id }),
+          }
+        );
+
+        const data = await res.json();
+        console.log(data, "get all");
+
+        if (res.status === 200) {
+          setfriendRequests(data);
+        } else {
+          console.error(
+            "Failed to add friends:",
+            data.detail || res.statusText
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
+    };
+    get_all_request();
+  }, []);
 
   useEffect(() => {
     const searchuser = async () => {
+      // if (input.trim() === ""){
+      //   setsearchResults
+      //   return} ;
       try {
         const res = await fetchWithAuth(
           "http://192.168.18.144:8000/api/search_users",
@@ -18,7 +108,7 @@ const Frndrequest = ({ isOpen, onClose }) => {
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ search: search }),
+            body: JSON.stringify({ search: search, from: user.id }),
           }
         );
 
@@ -26,7 +116,7 @@ const Frndrequest = ({ isOpen, onClose }) => {
         console.log(data);
 
         if (res.status === 200) {
-          setsearchResults(data);
+          setsearchResults(data.results);
         } else {
           console.error(
             "Failed to fetch users:",
@@ -39,8 +129,6 @@ const Frndrequest = ({ isOpen, onClose }) => {
     };
     searchuser();
   }, [search]);
-
-  console.log(search);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-[50%] h-[70%] shadow-lg flex flex-col">
@@ -99,6 +187,9 @@ const Frndrequest = ({ isOpen, onClose }) => {
           <div className="flex flex-col min-h-0">
             <div className="flex-shrink-0 mb-2">
               <div className="relative w-full ml-3">
+                <p className="text-white dark:text-white text-2xl pb-3.5 flex-shrink-0">
+                  Add Friends
+                </p>
                 <input
                   type="text"
                   value={search}
@@ -113,28 +204,70 @@ const Frndrequest = ({ isOpen, onClose }) => {
               className="flex-1 overflow-y-auto pt-3 px-3 rounded-md ml-3"
               style={{ scrollbarWidth: "none" }}
             >
-              {/* {searchResults.map((user) => ( */}
-              <div className="flex items-center justify-between w-full text-white ring-1 rounded-md p-3 mb-4">
-                {/* Avatar */}
-                <div className="ring-1 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0">
-                  <img
-                    src=""
-                    alt="profile"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+              {searchResults.map((user) => (
+                <div
+                  className="shadow-[0_4px_20px_rgba(255,255,255,0.1)]
+                            hover:shadow-[0_6px_25px_rgba(255,255,255,0.15)]
+                            transition-shadow duration-300 flex items-center justify-between w-full text-white rounded-md p-3 mb-4"
+                >
+                  {/* Avatar */}
+                  <div className=" bg-gray-600 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0 flex items-center justify-center">
+                    {user?.profile ? (
+                      <img
+                        src={`http://127.0.0.1:8000${user.profile}`}
+                        alt="profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="font-semibold text-lg">
+                        {user?.name?.[0]?.toUpperCase() || "?"}
+                      </span>
+                    )}
+                  </div>
 
-                {/* User Info */}
-                <div className="flex flex-col ml-4 flex-grow min-w-0">
-                  <p className="truncate">Mohammed Nihal</p>
-                  <p className="truncate">nihal</p>
-                </div>
+                  {/* User Info */}
+                  <div className="flex flex-col ml-6 flex-grow min-w-0 ">
+                    <p className="truncate">{user.name}</p>
+                    <p className="truncate">{user.username}</p>
+                  </div>
 
-                <button className="rounded-md py-0.5 px-2 ring-1 ring-[#68479D] bg-[#68479D] text-white text-sm font-medium hover:bg-[#7c62a5] flex-shrink-0">
-                  CANCEL
-                </button>
-              </div>
-              {/* ))} */}
+                  {/* Buttons */}
+                  <div className="flex flex-col mr-3 gap-1 flex-shrink-0">
+                    <button
+                      className={`rounded-md py-0.5 px-2 ring-1 ${
+                        user.is_friend
+                          ? "ring-[#68479D] bg-[#68479D]"
+                          : user.is_already_requested
+                          ? "ring-red-500 bg-red-500"
+                          : "ring-green-700 bg-green-700"
+                      }  ${
+                        user.is_friend
+                          ? "hover:bg-[#68479D]"
+                          : user.is_already_requested
+                          ? "hover:bg-red-700 "
+                          : "hover:bg-green-800 "
+                      }  text-white text-sm font-medium  cursor-pointer`}
+                      onClick={() => {
+                        user.is_friend
+                          ? ""
+                          : user.is_already_requested
+                          ? handleCancelRequest(user.id)
+                          : handleaddfriend(user.id);
+                      }}
+                    >
+                      {user.is_friend ? (
+                        <> Already Friend</>
+                      ) : user.is_already_requested ? (
+                        <>
+                          <i className="bi bi-x-circle-fill"></i> Cancel Request
+                        </>
+                      ) : (
+                        <i className="bi bi-person-plus-fill"></i>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

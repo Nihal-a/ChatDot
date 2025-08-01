@@ -490,6 +490,7 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
 
               return {
                 id: msg.id,
+                is_active: msg.is_active,
                 is_deleted: msg.is_deleted,
                 is_deleted_by: msg.is_deleted_by,
                 is_bothdeleted: msg.is_bothdeleted,
@@ -606,6 +607,10 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
           className="flex-grow overflow-y-auto scrollbar-hide px-4 py-3 space-y-2"
           style={{ scrollbarWidth: "none" }}
         ></div>
+        <Frndrequest
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+        />
       </>
     );
   }
@@ -677,8 +682,10 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
                 const deletedGlobally = msg.is_bothdeleted;
                 const deletedGlobally_by = msg.is_bothdeleted_by;
                 const edited = msg.is_edited;
+                const is_active = msg.is_active;
 
                 if (deletedForMe) return null;
+                if (!is_active) return null;
 
                 return (
                   <div
@@ -810,15 +817,17 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
         <button onClick={isEditingMsg.edit ? editMsg : sendMessage}>
           <VscSend className="text-xl text-[#68479D]" />
         </button>
-        <Frndrequest
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-        />
+
         <DeleteConfirmModal
           isOpen={showDeleteModal}
           onClose={() => setShowDeleteModal(false)}
           onDelete={deleteMessageBoth}
           msgId={selectedMsgId}
+        />
+        <Frndrequest
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          selecteduser={selecteduser}
         />
       </div>
     </>

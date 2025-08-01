@@ -65,3 +65,10 @@ class PasswordReset(models.Model):
     email=models.EmailField(unique=True)
     otp=models.BigIntegerField()
     last_generated=models.DateTimeField(auto_now_add=True)
+
+
+class FriendRequests(models.Model):
+    requested_by = models.ForeignKey(User,on_delete=models.CASCADE,blank=True,null=True)
+    requested_to = models.TextField(blank=True,null=True)
+    requested_date = models.DateTimeField(auto_now_add=True,blank=True,null=True)
+    is_accepted = models.BooleanField(default=False)
