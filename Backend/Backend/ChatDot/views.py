@@ -177,6 +177,7 @@ def logout_view(request):
 @permission_classes([IsAuthenticated])
 def get_userdata(request):
     user=request.user
+    print(user,"----user")
     res = Response({
         'user': {
         'id': user.id,
@@ -243,7 +244,7 @@ def otp_verification(request):
         if str(otp) == str(user.otp):
             if timezone.now() - user.last_generated > timedelta(minutes=5):
                 return Response({'detail': 'Otp expired try new one'}, status=status.HTTP_401_UNAUTHORIZED)       
-            user.otp=None
+            PasswordReset.objects.get(email=email).delete()
             user.save()
             return Response({'detail': 'Otp verified succesfully'}, status=status.HTTP_200_OK)
         else:
@@ -257,7 +258,7 @@ def otp_verification(request):
         if str(otp) == str(user.otp):
             if timezone.now() - user.last_generated > timedelta(minutes=5):
                 return Response({'detail': 'Otp expired try new one'}, status=status.HTTP_401_UNAUTHORIZED)       
-            user.otp=None
+            EmailVerification.objects.get(email=email).delete()
             user.save()
             return Response({'detail': 'Otp verified succesfully'}, status=status.HTTP_200_OK)
         else:
@@ -329,27 +330,56 @@ def get_messages(request):
             'is_deleted_by': msg.is_deleted_by,
             'is_bothdeleted': msg.is_bothdeleted,
             'is_bothdeleted_by': msg.is_bothdeleted_by,
-            'is_active': msg.is_active,
+            'is_cleared_by': msg.is_cleared_by,
         })
 
     return Response(grouped, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_users(request):
-    users = User.objects.all()
+    current_user = request.user.username
 
-    data = [
-        {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'name': user.fullname,
-            'profile': user.profile.url if user.profile else ""
-        } for user in users
-    ]
+    temp = Connections.objects.filter(
+        __raw__={
+            "$or": [
+                {"me": current_user},
+                {"my_friend": current_user}
+            ]
+        }
+    )
 
-    return Response({'users': data}, status=status.HTTP_200_OK)
+    result = []
+    seen_usernames = set()
+
+    for chat in temp:
+        other_username = chat.my_friend if chat.me == current_user else chat.me
+
+        if not other_username or other_username in seen_usernames:
+            continue
+
+        seen_usernames.add(other_username)
+
+        try:
+            other_user = User.objects.get(username=other_username)
+            result.append({
+                'id': str(other_user.id),
+                'username': other_user.username,
+                'email': other_user.email,
+                'name': other_user.fullname,
+                'profile': other_user.profile.url if other_user.profile else "",
+                'last_message': chat.last_message or "",
+                'last_message_time': chat.last_message_time.isoformat() if chat.last_message_time else None,
+                "unseen_count": ChatMessage.objects.filter(
+                    sender=other_username,
+                    receiver=current_user,
+                    seen=False
+                ).count()
+            })
+        except User.DoesNotExist:
+            continue
+
+    return JsonResponse({"connections": result}, safe=False)
 
 
 
@@ -434,9 +464,6 @@ def search_users(request):
          Q(username__iregex=search_regex) | Q(fullname__iregex=search_regex)
     ).exclude(id=is_from)
 
-
-
-
     results = [
     {
         "id": user.id,
@@ -482,14 +509,12 @@ def add_friend(request):
 def cancel_friend_request(request):
     is_to = request.data.get("to")
     is_from = request.data.get("from")
-    print(is_to)
-    print(is_from)
+
     FriendRequests.objects.filter(
     Q(requested_by=is_from, requested_to=is_to) |
     Q(requested_by=is_to, requested_to=is_from)
     ).delete()
     
-
     return Response(status=status.HTTP_200_OK)
 
 
@@ -497,18 +522,56 @@ def cancel_friend_request(request):
 @permission_classes([AllowAny])
 def get_all_request(request):
     user = request.data.get("user")
-    friend_requests = FriendRequests.objects.filter(requested_by=User.objects.get(id=user))
+    friend_requests = FriendRequests.objects.filter(requested_to=user)
     
-    requests=[]
+    requests=[]  
     requests=[
+    
     {
-        # "id":
+        "req_id":req.id,
+        "id":req.requested_by.id,
+        "name":req.requested_by.fullname,
+        "username":req.requested_by.username,
+        "email":req.requested_by.email,
+        "profile":req.requested_by.profile.url if req.requested_by.profile else None,
     }
     for req in friend_requests
     ]
 
+    return Response({"requests": requests },status=status.HTTP_200_OK)
 
-    return Response({"requests": friend_requests },status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def confirm_request(request):
+    req_id = request.data.get("req_id")
+    print(req_id)
+    
+    req = FriendRequests.objects.get(id=req_id)
+    user1 = req.requested_by.username
+    user2 = User.objects.get(id=req.requested_to).username
+
+    me = min(user1, user2)
+    my_friend = max(user1, user2)
+
+    # Avoid duplicates — check first
+    if not Connections.objects(me=me, my_friend=my_friend).first():
+        Connections(me=me, my_friend=my_friend).save()
+
+    # Remove the friend request after accepting
+    req.delete()
+
+    return Response(status=status.HTTP_200_OK)
+
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reject_req(request):
+    req_id = request.data.get("req_id")
+    FriendRequests.objects.get(id=req_id).delete()
+
+    return Response(status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])

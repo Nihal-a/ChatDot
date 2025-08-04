@@ -102,9 +102,12 @@ connect(
     tlsCAFile=certifi.where()
 )
 
-ChatMessage.objects(is_active__exists=False).update(set__is_active=True)  #to set new field in exsting datas
-# ChatMessage.objects(is_deleted_by__exists=False).update(set__is_deleted_by=[])
+# ChatMessage.objects(is_active__exists=False).update(set__is_active=True)  #to set new field in exsting datas
+# ChatMessage.objects(is_blocked_by__exists=False).update(set__is_blocked_by=[])
 
+
+# Connections.update_many({}, {'$unset': {'block': ""}})
+# Connections.objects.exclude('block')
 from mongoengine import *
 
 

@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { VscSend } from "react-icons/vsc";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Logout } from "../Redux/Slice";
 import { fetchWithAuth } from "../../utils";
 import { format, parse, differenceInMinutes, isSameDay } from "date-fns";
@@ -43,16 +43,31 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
     msgid: null,
   });
 
+  // Auto-scroll function with proper timing
+  const scrollToBottom = useCallback(() => {
+    // Use setTimeout to ensure DOM has updated
+    setTimeout(() => {
+      messageEndRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
+    }, 100);
+  }, []);
+
   const sendMessage = () => {
     if (input.trim() === "") return;
+
+    console.log("🚀 Sending message:", input);
+
     socketRef.current.send(
       JSON.stringify({
         type: "message",
         sender: user.username,
-        message: input,
+        message: input.trim(),
         rec: selectedUser.username,
       })
     );
+
     setinput("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -103,9 +118,9 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
         const screenHeight = window.innerHeight;
 
         if (rect.top > screenHeight * 0.65) {
-          setDropdownPosition("top"); // Message near bottom → show dropdown above
+          setDropdownPosition("top");
         } else {
-          setDropdownPosition("bottom"); // Message near top/mid → show dropdown below
+          setDropdownPosition("bottom");
         }
       }
     }, 0);
@@ -137,6 +152,27 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
     );
   };
 
+  const clearChat = () => {
+    socketRef.current.send(
+      JSON.stringify({
+        type: "clearchat",
+        time: new Date().toISOString(),
+        user: user.username,
+        to: selectedUser.username,
+      })
+    );
+  };
+
+  const handleBlock = () => {
+    socketRef.current.send(
+      JSON.stringify({
+        type: "block",
+        user: user.username,
+        to: selectedUser.username,
+      })
+    );
+  };
+
   const handleeditMsg = (msgid, msg) => {
     setinput(msg);
     setisEditingMsg({
@@ -153,7 +189,7 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
       JSON.stringify({
         type: "edit",
         id: isEditingMsg.msgid,
-        new_msg: input,
+        new_msg: input.trim(),
       })
     );
     setinput("");
@@ -234,18 +270,15 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
       const data = JSON.parse(event.data);
       console.log("📨 Received WebSocket data:", data);
 
-      // 🔥 Handle seen status updates
+      // Handle seen status updates
       if (data.type === "seen") {
         console.log("Processing seen update:", data);
 
-        // Mark messages as seen in UI for the sender
         setmessages((prevMessages) => {
           const updated = { ...prevMessages };
 
           for (const date in updated) {
             updated[date] = updated[date].map((msg) => {
-              // Mark messages sent by current user to the selected user as seen
-              // when the selected user (data.seen_by) has seen them
               if (
                 msg.sender === user.username &&
                 msg.receiver === selectedUser.username &&
@@ -262,7 +295,11 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
           return updated;
         });
 
-        return; // Done processing seen update
+        return;
+      }
+
+      if (data.type === "block") {
+        console.log("pppppppppppppp");
       }
 
       if (data.type === "deleteMe") {
@@ -274,7 +311,7 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
 
           for (const date in prevMessages) {
             const filtered = prevMessages[date].map((msg) => {
-              const isDeletedBy = msg.is_deleted_by || []; // ensure it's an array
+              const isDeletedBy = msg.is_deleted_by || [];
 
               return msg.id === deletedMsgId
                 ? {
@@ -291,6 +328,41 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
 
           return updatedMessages;
         });
+
+        return;
+      }
+
+      if (data.type === "clearchat") {
+        const clearTime = new Date(data.clear_time);
+        const clearUser = data.user;
+        console.log(clearTime);
+        console.log(clearUser);
+
+        setmessages((prevMessages) => {
+          const updated = {};
+
+          for (const date in prevMessages) {
+            const updatedMessages = prevMessages[date].map((msg) => {
+              const isClearedBy = msg.is_cleared_by || [];
+
+              // Add the user if not already in the list
+              if (!isClearedBy.includes(clearUser)) {
+                return {
+                  ...msg,
+                  is_cleared_by: [...isClearedBy, clearUser],
+                };
+              }
+
+              return msg;
+            });
+
+            updated[date] = updatedMessages;
+          }
+
+          return updated;
+        });
+
+        return;
       }
 
       if (data.type === "deleteBoth") {
@@ -322,16 +394,16 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
       }
 
       if (data.type === "edit") {
-        const editedessageId = data.id;
+        const editedMessageId = data.id;
         const new_msg = data.new_msg;
-        console.log("🗑️ edit message with ID:", editedessageId);
+        console.log("✏️ Edit message with ID:", editedMessageId);
 
         setmessages((prevMessages) => {
           const updatedMessages = {};
 
           for (const date in prevMessages) {
             const filtered = prevMessages[date].map((msg) =>
-              msg.id === editedessageId
+              msg.id === editedMessageId
                 ? {
                     ...msg,
                     is_edited: true,
@@ -349,53 +421,79 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
         return;
       }
 
-      // 🔥 Handle new messages
+      // Handle new messages - IMPROVED
       if (data.type === "message" || !data.type) {
+        console.log("📨 Processing new message:", data);
+
+        // Ensure we have all required fields
+        if (!data.datetime || !data.sender || !data.message) {
+          console.error("❌ Invalid message data:", data);
+          return;
+        }
+
         const msgDate = new Date(data.datetime);
         const formattedDate = format(msgDate, "dd MMMM yyyy");
         const formattedTime = format(msgDate, "hh:mm a");
 
         const newMessage = {
-          id: data.id,
+          id: data.id || Date.now(), // Fallback ID if not provided
           is_deleted_by: null,
           is_bothdeleted: false,
-          is_bothdeleted_by: null,
+          is_bothdeleted_by: false,
           sender: data.sender,
-          receiver: data.receiver,
+          receiver:
+            data.receiver ||
+            (data.sender === user.username
+              ? selectedUser.username
+              : user.username),
           message: data.message,
           time: formattedTime,
           seen: false,
+          is_edited: false,
         };
 
-        console.log("📨 New message received:", newMessage);
+        console.log("📨 New message to add:", newMessage);
 
-        // Add new message to state
+        // Use functional state update to ensure we get latest state
         setmessages((prevMessages) => {
+          console.log("📚 Previous messages:", prevMessages);
+
           const updatedMessages = { ...prevMessages };
 
           if (updatedMessages[formattedDate]) {
-            updatedMessages[formattedDate] = [
-              ...updatedMessages[formattedDate],
-              newMessage,
-            ];
+            // Check if message already exists to prevent duplicates
+            const messageExists = updatedMessages[formattedDate].some(
+              (msg) => msg.id === newMessage.id
+            );
+
+            if (!messageExists) {
+              updatedMessages[formattedDate] = [
+                ...updatedMessages[formattedDate],
+                newMessage,
+              ];
+            }
           } else {
             updatedMessages[formattedDate] = [newMessage];
           }
 
+          console.log("✅ Updated messages:", updatedMessages);
+
+          // Trigger scroll after state update
+          setTimeout(() => scrollToBottom(), 0);
+
           return updatedMessages;
         });
 
-        // 🔥 Auto-mark as seen if message is received from the selected user
+        // Auto-mark as seen if message is received from the selected user
         if (
           data.sender === selectedUser.username &&
-          data.receiver === user.username
+          (data.receiver === user.username || !data.receiver)
         ) {
           console.log(
             "👀 Auto-sending seen notification for message from",
             data.sender
           );
 
-          // Small delay to ensure message is processed first
           setTimeout(() => {
             if (
               socketRef.current &&
@@ -404,8 +502,8 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
               socketRef.current.send(
                 JSON.stringify({
                   type: "seen",
-                  sender: user.username, // who is marking as seen
-                  receiver: data.sender, // whose messages are being marked as seen
+                  sender: user.username,
+                  receiver: data.sender,
                 })
               );
             }
@@ -416,36 +514,20 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
       if (data.type === "sidebar_update") {
         const updatedUser = data.data;
         console.log("sidebar update");
-        // console.log(updatedUser);
         onlatestMsg(updatedUser);
-
-        // Update the sidebar user info
-        // setAllUser((prevUsers) => {
-        //   const existing = prevUsers.find(
-        //     (u) => u.username === updatedUser.username
-        //   );
-
-        //   if (existing) {
-        //     return prevUsers.map((user) =>
-        //       user.username === updatedUser.username
-        //         ? { ...user, ...updatedUser }
-        //         : user
-        //     );
-        //   } else {
-        //     return [...prevUsers, updatedUser];
-        //   }
-        // });
       }
     };
 
     socket.onopen = () => {
       console.log("✅ WebSocket connection opened");
-      // The backend will automatically mark messages as seen on connect
-      // No need to send manual seen notification here anymore
     };
 
     socket.onerror = (error) => {
       console.error("⚠️ WebSocket error", error);
+    };
+
+    socket.onclose = (event) => {
+      console.log("🔌 WebSocket connection closed:", event.code, event.reason);
     };
 
     return () => {
@@ -454,7 +536,7 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
         console.log("🧹 Cleanup: socket closed");
       }
     };
-  }, [selectedUser, user.username]);
+  }, [selectedUser, user.username, scrollToBottom]);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -477,7 +559,8 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
         );
 
         const data = await res.json();
-        console.log(data);
+        console.log("📚 Fetched messages:", data);
+
         if (res.status === 200) {
           const formattedGroupedMessages = {};
 
@@ -490,8 +573,8 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
 
               return {
                 id: msg.id,
-                is_active: msg.is_active,
                 is_deleted: msg.is_deleted,
+                is_cleared_by: msg.is_cleared_by,
                 is_deleted_by: msg.is_deleted_by,
                 is_bothdeleted: msg.is_bothdeleted,
                 is_bothdeleted_by: msg.is_bothdeleted_by,
@@ -507,6 +590,9 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
 
           setmessages(formattedGroupedMessages);
           console.log("📚 Loaded messages:", formattedGroupedMessages);
+
+          // Scroll to bottom after loading messages
+          setTimeout(() => scrollToBottom(), 200);
         } else {
           console.error(
             "Failed to fetch messages:",
@@ -524,11 +610,12 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
       fetchMessages();
       prevUserRef.current = selectedUser.username;
     }
-  }, [selectedUser, user.username]);
+  }, [selectedUser, user.username, scrollToBottom]);
 
+  // Auto-scroll when messages change
   useEffect(() => {
-    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -556,6 +643,8 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, [onClose]);
+
+  console.log(messages);
 
   if (!selectedUser) {
     return (
@@ -682,15 +771,15 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
                 const deletedGlobally = msg.is_bothdeleted;
                 const deletedGlobally_by = msg.is_bothdeleted_by;
                 const edited = msg.is_edited;
-                const is_active = msg.is_active;
+                const is_clearmsg = msg.is_cleared_by?.includes(user.username);
 
                 if (deletedForMe) return null;
-                if (!is_active) return null;
+                if (is_clearmsg) return null;
 
                 return (
                   <div
                     id={`msg-${msg.id}`}
-                    key={index}
+                    key={`${msg.id}-${index}`} // Better key for React
                     className={`relative w-fit min-w-[8%] max-w-[70%] px-2 py-1 pb-3.5 rounded-lg mb-1 ${
                       isMe
                         ? "bg-[#68479D] text-white self-end ml-auto group"
@@ -761,7 +850,8 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
                               {/* Both sender and receiver */}
                               <div
                                 className="w-full flex gap-2 items-center text-black mt-1 cursor-pointer py-1"
-                                onClick={() => deleteMessageMe(msg.id)}
+                                // onClick={() => deleteMessageMe(msg.id)}
+                                onClick={() => handleBlock()}
                               >
                                 <i className="bi bi-trash text-sm"></i>
                                 <p className="text-black text-sm">
@@ -827,7 +917,6 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
         <Frndrequest
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          selecteduser={selecteduser}
         />
       </div>
     </>

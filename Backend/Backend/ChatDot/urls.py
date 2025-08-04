@@ -21,6 +21,8 @@ urlpatterns = [
     path('api/add_friend',add_friend),
     path('api/cancel_friend_request',cancel_friend_request),
     path('api/get_all_request',get_all_request),
+    path('api/confirm_request',confirm_request),
+    path('api/reject_req',reject_req),
     path('api/fake_view',fake_view),
     ]
 

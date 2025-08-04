@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { useEffect } from "react";
 import { fetchWithAuth } from "../../utils";
 import { format } from "date-fns";
+import Cookies from "universal-cookie";
 
 const Sidebar = ({ onselectUser, latestMsg }) => {
   const [search, setSearch] = useState("");
@@ -11,6 +12,8 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
   const [isSelected, setisSelected] = useState();
   const [imageError, setImageError] = useState(false);
   const { user } = useSelector((state) => state.chatdot);
+  const cookies = new Cookies();
+  const access = cookies.get("access");
 
   const handleselectedUser = (user) => {
     onselectUser(user);
@@ -28,37 +31,32 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
           (item) => item.username === newItem.username
         );
 
-        // Format the date and time if timestamp exists
-        let formattedDate = "";
         let formattedTime = "";
-        if (newItem.last_msg_time) {
-          const msgDate = new Date(newItem.last_msg_time);
-          formattedDate = format(msgDate, "dd MMMM yyyy");
-          formattedTime = format(msgDate, "hh:mm a");
+        if (newItem.last_message_time) {
+          const msgDate = new Date(newItem.last_message_time);
+          const now = new Date();
+
+          const isToday =
+            msgDate.getDate() === now.getDate() &&
+            msgDate.getMonth() === now.getMonth() &&
+            msgDate.getFullYear() === now.getFullYear();
+
+          formattedTime = isToday
+            ? format(msgDate, "hh:mm a")
+            : format(msgDate, "dd MMM");
         }
 
         const enhancedItem = {
           ...newItem,
-          formattedDate,
           formattedTime,
         };
 
         if (existingIndex !== -1) {
-          const existing = updatedList[existingIndex];
-
-          // Only update fields that changed
-          const updatedItem = {
-            ...existing,
-            ...Object.fromEntries(
-              Object.entries(enhancedItem).filter(
-                ([key, value]) => value !== undefined && value !== existing[key]
-              )
-            ),
+          updatedList[existingIndex] = {
+            ...updatedList[existingIndex],
+            ...enhancedItem,
           };
-
-          updatedList[existingIndex] = updatedItem;
         } else {
-          // Add new user
           updatedList.unshift(enhancedItem);
         }
       });
@@ -66,7 +64,6 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
       return updatedList;
     });
   }, [latestMsg]);
-
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -74,12 +71,16 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
           "http://192.168.18.144:8000/api/get_users",
           {
             method: "GET",
+            headers: {
+              Authorization: `Bearer ${access}`,
+              "Content-Type": "application/json",
+            },
           }
         );
         const data = await res.json();
 
         if (res.status === 200) {
-          const filteredUsers = data.users.filter(
+          const filteredUsers = data.connections.filter(
             (u) => u.username !== user.username
           );
           setAllUsers(filteredUsers);
@@ -96,6 +97,7 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
 
     fetchUsers();
   }, []);
+  console.log(allusers);
 
   const profileUrl = user?.profile
     ? `http://192.168.18.144:8000${user.profile}`
@@ -133,7 +135,7 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
             <div className="w-[60px] h-[50px] flex items-center justify-center bg-amber-100 text-xl font-bold rounded-full overflow-hidden">
               {!imageError && user?.profile ? (
                 <img
-                  src={profileUrl}
+                  src={`http://192.168.18.144:8000${user.profile}`}
                   alt="profile"
                   onError={() => setImageError(true)}
                   className="w-full h-full object-cover"
@@ -145,11 +147,15 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
             <div className="flex justify-between items-center w-full">
               <div className="flex flex-col ">
                 <p className="font-medium pb-1">{user.username} </p>
-                <p className="text-xs text-gray-500">{user.last_msg}</p>
+                <p className="text-xs text-gray-500">{user.last_message}</p>
               </div>
               <div className="flex flex-col gap-1.5 ">
                 <p className="text-xs  text-gray-400">{user.formattedTime}</p>
-                <p className="text-xs  text-gray-400"></p>{" "}
+                {user.unseen_count > 0 && (
+                  <span className="text-xs font-semibold text-white bg-blue-500 rounded-full w-5 h-5 flex items-center justify-center mx-auto">
+                    {user.unseen_count}
+                  </span>
+                )}
               </div>
             </div>
           </div>

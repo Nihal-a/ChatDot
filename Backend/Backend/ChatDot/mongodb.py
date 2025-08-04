@@ -14,16 +14,17 @@ class ChatMessage(Document):
     is_deleted_by = ListField(StringField())
     is_bothdeleted_by = StringField(required=False)
     is_edited = BooleanField(default=False)
-    is_active = BooleanField(default=True)
+    is_cleared_by = ListField(StringField(),default=list)
+    is_cleared_by_time = DateTimeField()
+
 
 class Connections(Document):
     me = StringField(required=True)
     my_friend = StringField(required=True)
-    block = BooleanField(default=False)
+    connected_timestamp = DateTimeField(null=True, blank=True, required=False)
     last_message =  StringField(null=True, blank=True, required=False)
     last_message_time = DateTimeField(null=True, blank=True, required=False)
-    
-
+    is_blocked_by = ListField(StringField())
 
 
 

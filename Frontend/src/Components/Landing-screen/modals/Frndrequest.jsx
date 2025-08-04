@@ -32,7 +32,7 @@ const Frndrequest = ({ isOpen, onClose }) => {
         console.error("Failed to add friends:", data.detail || res.statusText);
       }
     } catch (error) {
-      console.error("Error fetching users:", error);
+      console.error("Error add friend:", error);
     }
   };
 
@@ -56,6 +56,31 @@ const Frndrequest = ({ isOpen, onClose }) => {
           )
         );
       } else {
+        console.error("Failed to cancel req :", data.detail || res.statusText);
+      }
+    } catch (error) {
+      console.error("Error cancel request:", error);
+    }
+  };
+
+  const get_all_request = async () => {
+    try {
+      const res = await fetchWithAuth(
+        "http://192.168.18.144:8000/api/get_all_request",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ user: user.id }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (res.status === 200) {
+        setfriendRequests(data.requests);
+      } else {
         console.error("Failed to add friends:", data.detail || res.statusText);
       }
     } catch (error) {
@@ -63,35 +88,53 @@ const Frndrequest = ({ isOpen, onClose }) => {
     }
   };
 
-  useEffect(() => {
-    const get_all_request = async () => {
-      try {
-        const res = await fetchWithAuth(
-          "http://192.168.18.144:8000/api/get_all_request",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ user: user.id }),
-          }
-        );
-
-        const data = await res.json();
-        console.log(data, "get all");
-
-        if (res.status === 200) {
-          setfriendRequests(data);
-        } else {
-          console.error(
-            "Failed to add friends:",
-            data.detail || res.statusText
-          );
+  const handleConfirmReq = async (id) => {
+    try {
+      const res = await fetchWithAuth(
+        "http://192.168.18.144:8000/api/confirm_request",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ req_id: id }),
         }
-      } catch (error) {
-        console.error("Error fetching users:", error);
+      );
+
+      if (res.status === 200) {
+        get_all_request();
+      } else {
+        console.error("Failed to confirm req :", data.detail || res.statusText);
       }
-    };
+    } catch (error) {
+      console.error("Error confirm request:", error);
+    }
+  };
+
+  const handleCancelmReq = async (id) => {
+    try {
+      const res = await fetchWithAuth(
+        "http://192.168.18.144:8000/api/reject_req",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ req_id: id }),
+        }
+      );
+
+      if (res.status === 200) {
+        get_all_request();
+      } else {
+        console.error("Failed to reject req :", data.detail || res.statusText);
+      }
+    } catch (error) {
+      console.error("Error reject request:", error);
+    }
+  };
+
+  useEffect(() => {
     get_all_request();
   }, []);
 
@@ -113,7 +156,6 @@ const Frndrequest = ({ isOpen, onClose }) => {
         );
 
         const data = await res.json();
-        console.log(data);
 
         if (res.status === 200) {
           setsearchResults(data.results);
@@ -129,6 +171,9 @@ const Frndrequest = ({ isOpen, onClose }) => {
     };
     searchuser();
   }, [search]);
+
+  console.log(friendRequests);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-[50%] h-[70%] shadow-lg flex flex-col">
@@ -152,36 +197,50 @@ const Frndrequest = ({ isOpen, onClose }) => {
               className="flex-1 overflow-y-auto pt-3 px-3 rounded-md"
               style={{ scrollbarWidth: "none" }}
             >
-              <div
-                className="shadow-[0_4px_20px_rgba(255,255,255,0.1)]
+              {friendRequests.map((req) => (
+                <div
+                  key={req.req_id}
+                  className="shadow-[0_4px_20px_rgba(255,255,255,0.1)]
                             hover:shadow-[0_6px_25px_rgba(255,255,255,0.15)]
                             transition-shadow duration-300 flex items-center justify-between w-full text-white rounded-md p-3 mb-4"
-              >
-                {/* Avatar */}
-                <div className="ring-1 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0">
-                  <img
-                    src=""
-                    alt="profile"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+                >
+                  <div className="ring-1 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0 flex items-center justify-center">
+                    {req?.profile ? (
+                      <img
+                        src={`http://127.0.0.1:8000${req.profile}`}
+                        alt="profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="font-semibold text-lg">
+                        {req?.name?.[0]?.toUpperCase() || "?"}
+                      </span>
+                    )}
+                  </div>
 
-                {/* User Info */}
-                <div className="flex flex-col ml-4 flex-grow min-w-0">
-                  <p className="truncate">Mohammed Nihal</p>
-                  <p className="truncate">nihal</p>
-                </div>
+                  {/* User Info */}
+                  <div className="flex flex-col ml-4 flex-grow min-w-0">
+                    <p className="truncate">{req.name}</p>
+                    <p className="truncate">{req.username}</p>
+                  </div>
 
-                {/* Buttons */}
-                <div className="flex flex-col mr-3 gap-1 flex-shrink-0">
-                  <button className="rounded-md py-0.5 px-2 ring-1 ring-green-700 bg-green-700 text-white text-sm font-medium hover:bg-green-500 cursor-pointer">
-                    CONFIRM
-                  </button>
-                  <button className="rounded-md py-0.5 px-2 ring-1 ring-red-700 bg-red-700 text-white text-sm font-medium hover:bg-red-500 cursor-pointer">
-                    REJECT
-                  </button>
+                  {/* Buttons */}
+                  <div className="flex flex-col mr-3 gap-1 flex-shrink-0">
+                    <button
+                      className="rounded-md py-0.5 px-2 ring-1 ring-green-700 bg-green-700 text-white text-sm font-medium hover:bg-green-500 cursor-pointer"
+                      onClick={() => handleConfirmReq(req.req_id)}
+                    >
+                      CONFIRM
+                    </button>
+                    <button
+                      className="rounded-md py-0.5 px-2 ring-1 ring-red-700 bg-red-700 text-white text-sm font-medium hover:bg-red-500 cursor-pointer"
+                      onClick={() => handleCancelmReq(req.req_id)}
+                    >
+                      REJECT
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
           <div className="flex flex-col min-h-0">

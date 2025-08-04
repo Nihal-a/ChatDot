@@ -4,9 +4,10 @@ from django.contrib.auth import get_user_model
 from channels.exceptions import DenyConnection
 from rest_framework_simplejwt.tokens import AccessToken
 from channels.db import sync_to_async
-from .mongodb import ChatMessage
+from .mongodb import *
 from datetime import datetime
 from bson import ObjectId 
+from django.db.models import Q
 
 User = get_user_model()
 
@@ -78,8 +79,59 @@ class ChatConsumer(AsyncWebsocketConsumer):
             print(data)
 
 
+            if msg_type == "clearchat":
+                clear_time_str = data.get("time")
+                username = data.get("user")
+                friend = data.get("to")  # This should be sent from frontend
+
+                if not clear_time_str or not username or not friend:
+                    print("Missing required fields")
+                    return
+
+                # Parse the incoming ISO string to datetime
+                try:
+                    clear_time = datetime.fromisoformat(clear_time_str.replace("Z", "+00:00"))
+                except Exception as e:
+                    print("Time parse error:", e)
+                    return
+
+                # Update all messages between user and friend before clear_time
+                # using the correct field: `timestamp` (not `created_at`)
+                result = ChatMessage.objects(
+                    __raw__={
+                        "$or": [
+                            {"sender": username, "receiver": friend},
+                            {"sender": friend, "receiver": username},
+                        ],
+                        "timestamp": {"$lte": clear_time},
+                        "is_cleared_by": {"$ne": username}
+                    }
+                ).update(push__is_cleared_by=username)
+
+                Connections.objects(
+                    __raw__={
+                        "$or": [
+                            {"me": username, "my_friend": friend},
+                            {"my_friend": friend, "me": username},
+                        ],
+                    }
+                ).update(set__last_message=None, set__last_message_time=None)
+
+
+
+                print(f"Cleared {result} messages for {username} before {clear_time}")
+
+                # Send broadcast to frontend for local update
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        "type": "clear_chat_message_broadcast",
+                        "clear_time": clear_time_str,
+                        "user": username,
+                    }
+                )
+
             if msg_type=="deleteMe":
-                print(data),
                 msg_id=data.get("id")
                 user=data.get("user")
                 msg = ChatMessage.objects(id=ObjectId(msg_id)).first()
@@ -94,6 +146,31 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         {
                             "type": "delete_me_message_broadcast",
                             "id": msg_id,
+                            "user": user,
+                        }
+                    )
+                
+
+            if msg_type=="block":
+                to=data.get("to")
+                user=data.get("user")
+
+
+                Connections.objects(
+                    __raw__={
+                        "$or": [
+                            {"me": user, "my_friend": to},
+                            {"my_friend": to, "me": user},
+                        ],
+                    }
+                ).update(push__is_blocked_by=user)
+
+              
+                await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            "type": "block_message_broadcast",
+                            "to": to,
                             "user": user,
                         }
                     )
@@ -148,6 +225,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         receiver=sender,  # To current user
                         seen=False
                     ).update)(seen=True)
+
+
                     
                     print(f"✅ Manual seen: Marked {updated_count} messages as seen from {receiver} to {sender}")
                     
@@ -162,11 +241,41 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             }
                         )
 
+                    # unseen_count = await sync_to_async(ChatMessage.objects.filter(
+                    #     sender=receiver, receiver=sender, seen=False
+                    # ).count)()
+
+                    # await self.channel_layer.group_send(
+                    #     f"user_{sender}",  # person who just opened the chat
+                    #     {
+                    #         "type": "sidebar_update",
+                    #         "data": {
+                    #             "username": receiver,
+                    #             "unread_count": unseen_count  # should be 0 now
+                    #         }
+                    #     }
+                    # )
+
 
             elif msg_type == "message":
                 message = data['message']
                 receiver = data['rec']
+                print(receiver)
                 current_time = datetime.now()
+
+
+                # Ensure consistent ordering
+                user1 = min(self.user.username, receiver)
+                user2 = max(self.user.username, receiver)
+
+                conn = Connections.objects(me=user1, my_friend=user2).first()
+
+                if conn:
+                    conn.last_message = message
+                    conn.last_message_time = current_time
+                    conn.save()
+                else:
+                    print("Connection not found")
 
                 # Save message to database first
                 chat_message = ChatMessage(
@@ -257,6 +366,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
             "type": "deleteMe",
             "id": msg_id,
             "user": event["user"],
+        }))
+
+
+    async def clear_chat_message_broadcast(self, event):
+
+        await self.send(text_data=json.dumps({
+            "clear_time":event["clear_time"],
+            "type": "clearchat",
+            "user": event["user"],
+        }))
+
+    async def block_message_broadcast(self, event):
+
+        await self.send(text_data=json.dumps({
+            "type": "block",
+            "user":event["user"],
+            "to": event["to"],
         }))
 
 
