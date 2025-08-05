@@ -19,7 +19,7 @@ function App() {
   const dispatch = useDispatch();
   const cookies = new Cookies();
   const navigate = useNavigate();
-  // const { isLoggedIn } = useSelector((state) => state.chatdot.user);
+  const { isLoggedIn } = useSelector((state) => state.chatdot.user);
   const access = cookies.get("access");
 
   useEffect(() => {
@@ -97,7 +97,7 @@ function App() {
             username,
             name,
             email,
-            profile: `http://192.168.18.144:8000${profile}`,
+            profile: profile,
           })
         );
       } else {
@@ -134,7 +134,6 @@ function App() {
   return (
     <>
       <Routes>
-        <Route path="/test" element={<Test />} />
         <Route
           path="/"
           element={
@@ -143,9 +142,17 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route path="/signup" element={<Signup />} />
         <Route path="/signin" element={<Signin />} />
-        <Route path="/forgotpass" element={<ForgotPass />} />
+        <Route
+          path="/forgotpass"
+          element={
+            <PrivateRoute>
+              <ForgotPass />
+            </PrivateRoute>
+          }
+        />
         <Route path="/chat" element={<Chat />} />
 
         <Route

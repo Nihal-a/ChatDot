@@ -177,14 +177,14 @@ def logout_view(request):
 @permission_classes([IsAuthenticated])
 def get_userdata(request):
     user=request.user
-    print(user,"----user")
+    print(user.profile,"----user")
     res = Response({
         'user': {
         'id': user.id,
         'username': user.username,
         'email': user.email,
         'name': user.fullname,
-        'profile': user.profile.url if user.profile else ""
+        'profile': user.profile.url if user.profile  else None
         }
     }, status=status.HTTP_200_OK)
  
@@ -370,6 +370,7 @@ def get_users(request):
                 'profile': other_user.profile.url if other_user.profile else "",
                 'last_message': chat.last_message or "",
                 'last_message_time': chat.last_message_time.isoformat() if chat.last_message_time else None,
+                'is_blocked_by': chat.is_blocked_by,  
                 "unseen_count": ChatMessage.objects.filter(
                     sender=other_username,
                     receiver=current_user,
@@ -451,7 +452,9 @@ def change_password(request):
 @permission_classes([AllowAny])
 def search_users(request):
     search =re.escape(request.data.get("search")) 
-    is_from = request.data.get("from")
+    from_id = request.data.get("from")
+    from_user=User.objects.get(id=from_id)
+    
    
     if not search:
         return Response({"results": []})
@@ -462,27 +465,26 @@ def search_users(request):
     users = User.objects.filter(
         # Q(username__icontains=search) | Q(fullname__icontains=search).
          Q(username__iregex=search_regex) | Q(fullname__iregex=search_regex)
-    ).exclude(id=is_from)
-
+    ).exclude(id=from_id)
     results = [
     {
         "id": user.id,
         "username": user.username,
-        "profile": getattr(user.profile, 'url', "ok") if user.profile and user.profile.name else None,
+        "profile": user.profile.url if user.profile  else None,
         "name": user.fullname,
         "email": user.email,
         "is_friend": Connections.objects.filter(
             __raw__={
                 "$or": [
-                    {"me": is_from, "my_friend": user.id},
-                    {"me": user.id, "my_friend": is_from}
+                    {"me": from_user.username, "my_friend": user.username},
+                    {"me": user.username, "my_friend": from_user.username}
                 ]
             }
         ).first() is not None,
 
         "is_already_requested": FriendRequests.objects.filter(
-            Q(requested_by=is_from, requested_to=user.id) |
-            Q(requested_by=user.id, requested_to=is_from)
+            Q(requested_by=User.objects.get(id=from_id), requested_to=user.id) |
+            Q(requested_by=user.id, requested_to=User.objects.get(id=from_id))
         ).exists()
     }
     for user in users

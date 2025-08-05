@@ -6,6 +6,12 @@ import { useSelector, useDispatch } from "react-redux";
 import Cookies from "universal-cookie";
 
 const Signin = () => {
+  const { isLoggedIn } = useSelector((state) => state.chatdot.user);
+  const navigate = useNavigate();
+
+  {
+    isLoggedIn ? navigate("/") : navigate("/signin");
+  }
   const [showPassword, setshowPassword] = useState(false);
   const [errors, seterrors] = useState();
   const [loading, setloading] = useState(false);
@@ -16,7 +22,6 @@ const Signin = () => {
   const cookie = new Cookies();
 
   const dispatch = useDispatch();
-  const navigate = useNavigate();
 
   const Login = async (e) => {
     e.preventDefault();
@@ -46,7 +51,7 @@ const Signin = () => {
             username: data.user.username,
             name: data.user.name,
             email: data.user.email,
-            profile: `http://127.0.0.1:8000${data.user.profile}`,
+            profile: data.user.profile,
           })
         );
         navigate("/");
@@ -81,7 +86,9 @@ const Signin = () => {
                 Please enter your credentials to continue
               </p>
               <form
-                onSubmit={(e) => Login(e)}
+                onSubmit={(e) => {
+                  loading ? "" : Login(e);
+                }}
                 className="flex flex-col w-full items-center justify-center"
               >
                 <div className="w-full relative flex flex-col items-center justify-center mt-10">

@@ -156,6 +156,7 @@ const Frndrequest = ({ isOpen, onClose }) => {
         );
 
         const data = await res.json();
+        console.log(data.results, "result of search");
 
         if (res.status === 200) {
           setsearchResults(data.results);
@@ -172,7 +173,7 @@ const Frndrequest = ({ isOpen, onClose }) => {
     searchuser();
   }, [search]);
 
-  console.log(friendRequests);
+  console.log(searchResults);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -207,7 +208,7 @@ const Frndrequest = ({ isOpen, onClose }) => {
                   <div className="ring-1 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0 flex items-center justify-center">
                     {req?.profile ? (
                       <img
-                        src={`http://127.0.0.1:8000${req.profile}`}
+                        src={`http://192.168.18.144:8000${req.profile}`}
                         alt="profile"
                         className="w-full h-full object-cover"
                       />
@@ -273,7 +274,7 @@ const Frndrequest = ({ isOpen, onClose }) => {
                   <div className=" bg-gray-600 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0 flex items-center justify-center">
                     {user?.profile ? (
                       <img
-                        src={`http://127.0.0.1:8000${user.profile}`}
+                        src={`http://192.168.18.144:8000${user.profile}`}
                         alt="profile"
                         className="w-full h-full object-cover"
                       />

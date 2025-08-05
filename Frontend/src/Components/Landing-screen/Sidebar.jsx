@@ -6,7 +6,7 @@ import { fetchWithAuth } from "../../utils";
 import { format } from "date-fns";
 import Cookies from "universal-cookie";
 
-const Sidebar = ({ onselectUser, latestMsg }) => {
+const Sidebar = ({ onselectUser, latestMsg, onSidebarUpdate }) => {
   const [search, setSearch] = useState("");
   const [allusers, setAllUsers] = useState([]);
   const [isSelected, setisSelected] = useState();
@@ -15,11 +15,14 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
   const cookies = new Cookies();
   const access = cookies.get("access");
 
+  // Remove WebSocket logic from here - it's now in Home component
+
   const handleselectedUser = (user) => {
     onselectUser(user);
     setisSelected(user.name);
   };
 
+  // Handle latestMsg updates
   useEffect(() => {
     if (!latestMsg || !Array.isArray(latestMsg)) return;
 
@@ -64,6 +67,8 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
       return updatedList;
     });
   }, [latestMsg]);
+
+  // Initial fetch of users
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -95,13 +100,20 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
       }
     };
 
-    fetchUsers();
-  }, []);
-  console.log(allusers);
+    if (access && user?.username) {
+      fetchUsers();
+    }
+  }, [access, user?.username]);
+
 
   const profileUrl = user?.profile
     ? `http://192.168.18.144:8000${user.profile}`
     : "";
+
+  // Filter users based on search
+  const filteredUsers = allusers.filter(user =>
+    user.username.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <>
@@ -124,7 +136,7 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
         className="flex-grow overflow-y-auto scrollbar-hide px-4 pb-4"
         style={{ scrollbarWidth: "none" }}
       >
-        {allusers.map((user) => (
+        {filteredUsers.map((user) => (
           <div
             className={`flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md cursor-pointer ${
               isSelected === user.name ? "bg-gray-100" : ""
@@ -147,12 +159,14 @@ const Sidebar = ({ onselectUser, latestMsg }) => {
             <div className="flex justify-between items-center w-full">
               <div className="flex flex-col ">
                 <p className="font-medium pb-1">{user.username} </p>
-                <p className="text-xs text-gray-500">{user.last_message}</p>
+                <p className="text-xs text-gray-500 truncate max-w-[150px]">
+                  {user.last_message || "No messages yet"}
+                </p>
               </div>
-              <div className="flex flex-col gap-1.5 ">
-                <p className="text-xs  text-gray-400">{user.formattedTime}</p>
+              <div className="flex flex-col gap-1.5 items-end">
+                <p className="text-xs text-gray-400">{user.formattedTime}</p>
                 {user.unseen_count > 0 && (
-                  <span className="text-xs font-semibold text-white bg-blue-500 rounded-full w-5 h-5 flex items-center justify-center mx-auto">
+                  <span className="text-xs font-semibold text-white bg-blue-500 rounded-full w-5 h-5 flex items-center justify-center">
                     {user.unseen_count}
                   </span>
                 )}

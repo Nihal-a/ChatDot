@@ -8,6 +8,7 @@ from .mongodb import *
 from datetime import datetime
 from bson import ObjectId 
 from django.db.models import Q
+from mongoengine.queryset.visitor import Q
 
 User = get_user_model()
 
@@ -30,10 +31,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         self.room_group_name = f'chat_{self.room_name}'
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
-        await self.accept()
+
 
         self.user_group_name = f"user_{self.user.username}"
         await self.channel_layer.group_add(self.user_group_name, self.channel_name)
+        await self.accept()
         
         # 🔥 NEW: When user connects, mark all unread messages from other user as seen
         participants = self.room_name.split('_')
@@ -154,18 +156,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if msg_type=="block":
                 to=data.get("to")
                 user=data.get("user")
-
-
-                Connections.objects(
-                    __raw__={
-                        "$or": [
-                            {"me": user, "my_friend": to},
-                            {"my_friend": to, "me": user},
-                        ],
-                    }
+                print(to)
+                print(user)
+                res = Connections.objects(
+                    Q(me=user, my_friend=to) | Q(me=to, my_friend=user)
                 ).update(push__is_blocked_by=user)
 
-              
                 await self.channel_layer.group_send(
                         self.room_group_name,
                         {
@@ -176,6 +172,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     )
                 
 
+            if msg_type=="unblock":
+                to=data.get("to")
+                user=data.get("user")
+                res = Connections.objects(
+                    Q(me=user, my_friend=to) | Q(me=to, my_friend=user)
+                ).update(pull__is_blocked_by=user)
+
+              
+                await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            "type": "unblock_message_broadcast",
+                            "to": to,
+                            "user": user,
+                        }
+                    )
+                
 
 
             if msg_type=="deleteBoth":
@@ -314,16 +327,35 @@ class ChatConsumer(AsyncWebsocketConsumer):
             print("Error in receive():", e)
 
 
-    async def send_sidebar_update(self, receiver_username, sender_username, message, timestamp):
+    async def send_sidebar_update(self, receiver_username, sender_username, message, timestamp, is_active_chat=False):
         # Count unseen messages from sender to receiver
         unseen_count = await sync_to_async(ChatMessage.objects.filter(
             sender=sender_username,
             receiver=receiver_username,
             seen=False
         ).count)()
-        print(unseen_count)
+        
+        # If it's an active chat, the unseen count should be 0 for the receiver
+        if is_active_chat:
+            unseen_count = 0
+        
+        print(f"Sending sidebar update - unseen count: {unseen_count}, is_active_chat: {is_active_chat}")
 
 
+        # Send to sender (person who sent the message) with unseen_count = 0
+        await self.channel_layer.group_send(
+            f"user_{sender_username}",
+            {
+                "type": "sidebar_update", 
+                "data": {
+                    "username": receiver_username,
+                    "last_msg": message,
+                    "last_msg_time": timestamp.isoformat(),
+                    "unseen_count": 0  # Sender has no unseen messages
+                }
+            }
+        )
+        # Send to receiver (person getting the message)
         await self.channel_layer.group_send(
             f"user_{receiver_username}",
             {
@@ -332,10 +364,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "username": sender_username,
                     "last_msg": message,
                     "last_msg_time": timestamp.isoformat(),
-                    "unread_count": unseen_count
+                    "unseen_count": unseen_count
                 }
             }
         )
+
 
 
     async def chat_message(self, event):
@@ -378,9 +411,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }))
 
     async def block_message_broadcast(self, event):
-
         await self.send(text_data=json.dumps({
             "type": "block",
+            "user":event["user"],
+            "to": event["to"],
+        }))
+
+    async def unblock_message_broadcast(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "unblock",
             "user":event["user"],
             "to": event["to"],
         }))
@@ -408,8 +447,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
 
     async def sidebar_update(self, event):
-        print("oooooooookkkkkkk")
-        print(event["data"])
+        print("sidebar update rubnning")
         await self.send(text_data=json.dumps({
             "type": "sidebar_update",
             "data": event["data"]

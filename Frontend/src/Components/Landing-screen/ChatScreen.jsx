@@ -11,7 +11,12 @@ import Cookies from "universal-cookie";
 import Frndrequest from "./modals/frndrequest";
 import DeleteConfirmModal from "./modals/DeleteConfirmModal";
 
-const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
+const ChatScreen = ({
+  selectedUser,
+  onClose,
+  onlatestMsg,
+  updateselectUser,
+}) => {
   const { user } = useSelector((state) => state.chatdot);
 
   const [dropdown, setDropdown] = useState(false);
@@ -45,7 +50,6 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
 
   // Auto-scroll function with proper timing
   const scrollToBottom = useCallback(() => {
-    // Use setTimeout to ensure DOM has updated
     setTimeout(() => {
       messageEndRef.current?.scrollIntoView({
         behavior: "smooth",
@@ -173,6 +177,16 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
     );
   };
 
+  const handleUnblock = () => {
+    socketRef.current.send(
+      JSON.stringify({
+        type: "unblock",
+        user: user.username,
+        to: selectedUser.username,
+      })
+    );
+  };
+
   const handleeditMsg = (msgid, msg) => {
     setinput(msg);
     setisEditingMsg({
@@ -266,6 +280,8 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
 
     socketRef.current = socket;
 
+    // Auto-mark messages as seen when chat opens or new messages arrive
+
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       console.log("📨 Received WebSocket data:", data);
@@ -285,7 +301,6 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
                 data.seen_by === selectedUser.username &&
                 data.message_sender === user.username
               ) {
-                console.log("✅ Marking message as seen:", msg.message);
                 return { ...msg, seen: true };
               }
               return msg;
@@ -299,7 +314,23 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
       }
 
       if (data.type === "block") {
-        console.log("pppppppppppppp");
+        console.log("block done");
+        updateselectUser({
+          ...selectedUser,
+          is_blocked_by: selectedUser.is_blocked_by.includes(user.username)
+            ? selectedUser.is_blocked_by
+            : [...selectedUser.is_blocked_by, user.username],
+        });
+      }
+
+      if (data.type === "unblock") {
+        console.log("unblock workssssssssss");
+        updateselectUser({
+          ...selectedUser,
+          is_blocked_by: selectedUser.is_blocked_by.filter(
+            (u) => u !== user.username
+          ),
+        });
       }
 
       if (data.type === "deleteMe") {
@@ -421,6 +452,9 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
         return;
       }
 
+      if (data.type === "sidebar_update") {
+        onlatestMsg(data.data); // Pass to Home
+      }
       // Handle new messages - IMPROVED
       if (data.type === "message" || !data.type) {
         console.log("📨 Processing new message:", data);
@@ -475,6 +509,18 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
           } else {
             updatedMessages[formattedDate] = [newMessage];
           }
+          if (
+            socketRef.current &&
+            socketRef.current.readyState === WebSocket.OPEN
+          ) {
+            socketRef.current.send(
+              JSON.stringify({
+                type: "seen",
+                sender: user.username,
+                receiver: data.sender,
+              })
+            );
+          }
 
           console.log("✅ Updated messages:", updatedMessages);
 
@@ -509,12 +555,6 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
             }
           }, 100);
         }
-      }
-
-      if (data.type === "sidebar_update") {
-        const updatedUser = data.data;
-        console.log("sidebar update");
-        onlatestMsg(updatedUser);
       }
     };
 
@@ -644,8 +684,6 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
     return () => window.removeEventListener("keydown", handleEsc);
   }, [onClose]);
 
-  console.log(messages);
-
   if (!selectedUser) {
     return (
       <>
@@ -664,12 +702,14 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
           >
             {user?.profile ? (
               <img
-                src={user.profile}
-                alt="profile"
+                src={`http://192.168.18.144:8000${user.profile}`}
+                alt="okokok"
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-gray-300 animate-pulse" />
+              <div className="w-full h-full flex items-center justify-center bg-black/40 text-xl font-bold">
+                {user?.username?.[0]?.toUpperCase() || "?"}
+              </div>
             )}
           </div>
           {dropdown && (
@@ -722,12 +762,18 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
         >
           {user?.profile ? (
             <img
-              src={user.profile}
-              alt="profile"
+              src={`http://192.168.18.144:8000${user.profile}`}
+              alt="okokok"
+              // onError={(e) => {
+              //   e.target.onerror = null;
+              //   e.target.src = "/fallback.png"; // or some default avatar
+              // }}
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full bg-gray-300 animate-pulse" />
+            <div className="w-full h-full flex items-center justify-center bg-black/40 text-xl font-bold">
+              {user?.username?.[0]?.toUpperCase() || "?"}
+            </div>
           )}
         </div>
         {dropdown && (
@@ -892,33 +938,49 @@ const ChatScreen = ({ selectedUser, onClose, onlatestMsg }) => {
 
         <div ref={messageEndRef} />
       </div>
-      <div className="h-[8%] flex items-center justify-between px-4 py-3 bg-white border-t rounded-t-xl border-gray-200 max-h-32">
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => {
-            setinput(e.target.value);
-            handletextareaInput();
-          }}
-          onKeyDown={handleKeyDown}
-          className="w-[97%] py-2.5 px-4 text-sm rounded-xl focus:ring-0 focus:outline-none bg-gray-100 resize-none overflow-y-auto max-h-32"
-          rows={1}
-        />
-        <button onClick={isEditingMsg.edit ? editMsg : sendMessage}>
-          <VscSend className="text-xl text-[#68479D]" />
-        </button>
+      {selectedUser.is_blocked_by.includes(user.username) ? (
+        <div className="h-[7%] flex items-center justify-center gap-5 px-4 py-3 bg-white border-t rounded-t-xl border-gray-200 max-h-32">
+          <button
+            className="text-md text-white font-[manrope] w-[20%] rounded-full bg-[#EF4444] ring-1 ring-white  py-0.5 cursor-pointer
+           hover:text-[#EF4444] hover:ring-[#EF4444] hover:bg-white ransition-all duration-300 delay-100"
+            onClick={() => clearChat()}
+          >
+            <i className="bi bi-trash3"></i> Delete Chat
+          </button>
+          <button
+            className="text-md text-white font-[manrope] w-[20%] rounded-full bg-[#22C55E] ring-1 ring-white py-0.5 cursor-pointer
+           hover:text-[#22C55E] hover:ring-[#22C55E] hover:bg-white ransition-all duration-300 delay-100"
+            onClick={() => handleUnblock()}
+          >
+            <i className="bi bi-ban"></i> Unblock
+          </button>
+        </div>
+      ) : (
+        <div className="h-[8%] flex items-center justify-between px-4 py-3 bg-white border-t rounded-t-xl border-gray-200 max-h-32">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => {
+              setinput(e.target.value);
+              handletextareaInput();
+            }}
+            onKeyDown={handleKeyDown}
+            className="w-[97%] py-2.5 px-4 text-sm rounded-xl focus:ring-0 focus:outline-none bg-gray-100 resize-none overflow-y-auto max-h-32"
+            rows={1}
+          />
+          <button onClick={isEditingMsg.edit ? editMsg : sendMessage}>
+            <VscSend className="text-xl text-[#68479D]" />
+          </button>
+        </div>
+      )}
 
-        <DeleteConfirmModal
-          isOpen={showDeleteModal}
-          onClose={() => setShowDeleteModal(false)}
-          onDelete={deleteMessageBoth}
-          msgId={selectedMsgId}
-        />
-        <Frndrequest
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-        />
-      </div>
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onDelete={deleteMessageBoth}
+        msgId={selectedMsgId}
+      />
+      <Frndrequest isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </>
   );
 };
