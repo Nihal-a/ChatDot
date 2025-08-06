@@ -13,7 +13,20 @@ const Home = () => {
   const access = cookies.get("access");
   const sidebarSocketRef = useRef(null);
 
-  // WebSocket for sidebar updates
+  const chatScreenRef = useRef();
+
+  const handleBlock = (targetUsername) => {
+    chatScreenRef.current?.handleBlock(targetUsername);
+  };
+
+  const handleunBlock = (targetUsername) => {
+    chatScreenRef.current?.handleunBlock(targetUsername);
+  };
+
+  const handleClearChat = (targetUsername) => {
+    chatScreenRef.current?.handleClearChat(targetUsername);
+  };
+
   useEffect(() => {
     if (!access || !user?.username) return;
 
@@ -141,11 +154,13 @@ const Home = () => {
     });
   };
 
-
   return (
     <div className="w-full h-screen flex overflow-hidden font-[inter]">
       <div className="w-1/4 h-full flex flex-col border-r border-gray-200">
         <Sidebar
+          onBlock={handleBlock}
+          onunBlock={handleunBlock}
+          onClearChat={handleClearChat}
           onselectUser={handleUserSelect}
           latestMsg={latestMsg}
           onSidebarUpdate={handleSidebarUpdate} // Pass the callback
@@ -153,10 +168,12 @@ const Home = () => {
       </div>
       <div className="w-3/4 h-full flex flex-col bg-[#EFEDF8]">
         <ChatScreen
+          ref={chatScreenRef}
           selectedUser={selectedUser}
           onClose={handleCloseChatScreen}
           onlatestMsg={handleLatestMsg}
           updateselectUser={handleUserSelect}
+          user={user}
         />
       </div>
     </div>

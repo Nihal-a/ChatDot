@@ -317,7 +317,7 @@ def get_messages(request):
 
         local_dt = localtime(dt)
         date_key = local_dt.strftime("%d %B %Y")
-
+        
         grouped[date_key].append({
             'id': str(msg.id),
             'is_deleted':msg.is_deleted,

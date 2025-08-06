@@ -2,8 +2,15 @@ import { useEffect, useState, useRef } from "react";
 import "../../Components/Style.css";
 import { Link, useNavigate } from "react-router-dom";
 import { FaBullseye, FaUser } from "react-icons/fa";
+import { useSelector, useDispatch } from "react-redux";
 
 const Signup = () => {
+  const { isLoggedIn } = useSelector((state) => state.chatdot.user);
+  const navigate = useNavigate();
+  {
+    isLoggedIn ? navigate("/") : navigate("/signin");
+  }
+
   const [isEmailSubmitted, setisEmailSubmitted] = useState(false);
   const [isEmailAuthenticated, setisEmailAuthenticated] = useState(false);
   const [isUsernameValid, setisUsernameValid] = useState();
@@ -28,7 +35,6 @@ const Signup = () => {
   const [errors, seterrors] = useState({
     email: "",
   });
-  const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
   const EmailVerfication = async (e) => {
