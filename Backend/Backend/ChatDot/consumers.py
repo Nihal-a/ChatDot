@@ -135,6 +135,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             if msg_type=="deleteMe":
                 msg_id=data.get("id")
+                print
                 user=data.get("user")
                 msg = ChatMessage.objects(id=ObjectId(msg_id)).first()
                 if isinstance(msg.is_deleted_by, list):

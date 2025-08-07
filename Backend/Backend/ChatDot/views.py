@@ -136,6 +136,7 @@ def Login(request):
         'username': user.username,
         'email': user.email,
         'name': user.fullname,
+        'about': user.about,
         'profile': user.profile.url if user.profile else ""
         }
     }, status=status.HTTP_200_OK)
@@ -177,13 +178,14 @@ def logout_view(request):
 @permission_classes([IsAuthenticated])
 def get_userdata(request):
     user=request.user
-    print(user.profile,"----user")
+    print(user.about,"----user")
     res = Response({
         'user': {
         'id': user.id,
         'username': user.username,
         'email': user.email,
         'name': user.fullname,
+        'about': user.about,
         'profile': user.profile.url if user.profile  else None
         }
     }, status=status.HTTP_200_OK)
@@ -574,6 +576,37 @@ def reject_req(request):
     FriendRequests.objects.get(id=req_id).delete()
 
     return Response(status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def profile_edit(request):
+    try:
+        id = request.data.get("id")
+        user = User.objects.get(id=id)
+
+        name = request.data.get("name", "").strip()
+        about = request.data.get("about")
+        profile = request.FILES.get("profile") or request.data.get("profile")
+        user.fullname = name
+
+        if about is not None:
+            user.about = about
+
+        if profile is None:
+            user.profile = user.profile
+        elif profile is not None:
+            user.profile = profile
+        elif profile =="remove":
+            user.profile = None
+
+
+        user.save()
+
+        return Response({"detail": "Profile updated successfully"}, status=200)
+
+    except Exception as e:
+        return Response({"detail": str(e)}, status=500)
 
 
 @api_view(['POST'])

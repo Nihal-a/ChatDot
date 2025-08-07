@@ -53,6 +53,8 @@ const ChatScreen = forwardRef(
       edit: false,
       msgid: null,
     });
+    const [ModalMsg, setModalMsg] = useState(null);
+    const [deleteType, setDeleteType] = useState(null);
 
     const scrollToBottom = useCallback(() => {
       setTimeout(() => {
@@ -137,9 +139,21 @@ const ChatScreen = forwardRef(
       setmsgalterdropdown(true);
     };
 
-    const openDeleteModal = (msgId) => {
+    const openDeleteModal = (msgId, type) => {
+      console.log(type);
+      setModalMsg(type);
       setSelectedMsgId(msgId);
+      setDeleteType(type);
       setShowDeleteModal(true);
+    };
+
+    const handleDelete = () => {
+      if (deleteType === "me") {
+        deleteMessageMe(selectedMsgId);
+      } else if (deleteType === "both") {
+        deleteMessageBoth(selectedMsgId);
+      }
+      setShowDeleteModal(false);
     };
 
     const deleteMessageBoth = (msgid) => {
@@ -949,7 +963,9 @@ const ChatScreen = forwardRef(
                                       </div>
                                       <div
                                         className="w-full flex gap-2 items-center text-black border-b pb-1 py-1 cursor-pointer"
-                                        onClick={() => openDeleteModal(msg.id)}
+                                        onClick={() =>
+                                          openDeleteModal(msg.id, "both")
+                                        }
                                       >
                                         <i className="bi bi-trash text-sm"></i>
                                         <p className="text-black text-sm">
@@ -961,7 +977,9 @@ const ChatScreen = forwardRef(
 
                                   <div
                                     className="w-full flex gap-2 items-center text-black mt-1 cursor-pointer py-1"
-                                    onClick={() => deleteMessageMe()}
+                                    onClick={() =>
+                                      openDeleteModal(msg.id, "me")
+                                    }
                                   >
                                     <i className="bi bi-trash text-sm"></i>
                                     <p className="text-black text-sm">
@@ -1046,9 +1064,10 @@ const ChatScreen = forwardRef(
         <DeleteConfirmModal
           isOpen={showDeleteModal}
           onClose={() => setShowDeleteModal(false)}
-          onDelete={deleteMessageBoth}
-          msgId={selectedMsgId}
+          onDelete={handleDelete}
+          showMsg={ModalMsg}
         />
+
         <Frndrequest
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}

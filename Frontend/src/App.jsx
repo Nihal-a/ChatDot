@@ -11,7 +11,6 @@ import Chat from "./Components/Chat.jsx";
 import ChatRoom from "./Components/Chatroom.jsx";
 import PrivateRoute from "./PrivateRoute.jsx";
 import ForgotPass from "./Components/ForgotPass/ForgotPass.jsx";
-import Test from "./test.jsx";
 
 function App() {
   const [refreshDone, setRefreshDone] = useState(false);
@@ -22,8 +21,18 @@ function App() {
   const { isLoggedIn } = useSelector((state) => state.chatdot.user);
   const access = cookies.get("access");
 
+  console.log("Current login status:", isLoggedIn);
+
   useEffect(() => {
     const refreshSession = async () => {
+      // If no access token exists, skip session refresh
+      if (!access) {
+        console.log("No access token found, skipping refresh");
+        setloading(false);
+        setRefreshDone(true);
+        return;
+      }
+
       if (refreshDone) return;
 
       try {
@@ -72,7 +81,7 @@ function App() {
     };
 
     refreshSession();
-  }, [refreshDone]);
+  }, [refreshDone, access]); // Added access as dependency
 
   const fetchUserAndLogin = async (token) => {
     try {
@@ -89,7 +98,7 @@ function App() {
 
       const userData = await userRes.json();
       if (userRes.ok) {
-        const { id, username, name, email, profile } = userData.user;
+        const { id, username, name, email, profile, about } = userData.user;
         dispatch(
           login({
             isLoggedIn: true,
@@ -97,6 +106,7 @@ function App() {
             username,
             name,
             email,
+            about,
             profile: profile,
           })
         );
@@ -110,21 +120,34 @@ function App() {
   };
 
   const handleLogout = async () => {
+    console.log("Logging out user...");
+
+    // First dispatch logout to clear Redux state
     dispatch(Logout());
+
+    const currentAccess = cookies.get("access");
+
     try {
-      await fetch("http://192.168.18.144:8000/api/logout", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${access}`,
-        },
-        credentials: "include",
-      });
+      if (currentAccess) {
+        await fetch("http://192.168.18.144:8000/api/logout", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${currentAccess}`,
+          },
+          credentials: "include",
+        });
+      }
     } catch (err) {
-      console.error("Logout failed:", err);
+      console.error("Logout API failed:", err);
     }
+
+    // Remove cookies and clear states
+    cookies.remove("access", { path: "/" });
     setloading(false);
-    cookies.remove("access");
-    navigate("/signin");
+    setRefreshDone(true);
+
+    // Navigate to signin
+    navigate("/signin", { replace: true });
   };
 
   if (loading) {
@@ -145,14 +168,7 @@ function App() {
 
         <Route path="/signup" element={<Signup />} />
         <Route path="/signin" element={<Signin />} />
-        <Route
-          path="/forgotpass"
-          element={
-            <PrivateRoute>
-              <ForgotPass />
-            </PrivateRoute>
-          }
-        />
+        <Route path="/forgotpass" element={<ForgotPass />} />
         <Route path="/chat" element={<Chat />} />
 
         <Route

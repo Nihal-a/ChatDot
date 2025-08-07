@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/confirm_request',confirm_request),
     path('api/reject_req',reject_req),
     path('api/fake_view',fake_view),
+    path('api/profile_edit',profile_edit),
     ]
 
 if settings.DEBUG:

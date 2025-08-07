@@ -1,7 +1,18 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
-const DeleteConfirmModal = ({ isOpen, onClose, onDelete, showMsg }) => {
+const AccountDelConfimModal = ({
+  isOpen,
+  onClose,
+  onDelete,
+  userid,
+  showMsg,
+}) => {
   if (!isOpen) return null;
+  const [ModalMsg, setModalMsg] = useState(null);
+
+  useEffect(() => {
+    setModalMsg(showMsg);
+  }, [showMsg]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent bg-opacity-40 backdrop-blur-sm transition-opacity">
@@ -10,8 +21,8 @@ const DeleteConfirmModal = ({ isOpen, onClose, onDelete, showMsg }) => {
           Delete Message?
         </h2>
         <p className="text-gray-600 text-sm text-center mb-6">
-          {showMsg == "me"
-            ? "This message will be deleted for you and can’t be undone"
+          {showMsg == "confirm delete"
+            ? "This action will be deleted your account forever and you need to signup again to access ChatDot and the exsting connections and messages also will be erased, and action can’t be undone once you delete!"
             : "This message will be deleted for everyone and can’t be undone"}
         </p>
         <div className="flex justify-center gap-4">
@@ -36,4 +47,4 @@ const DeleteConfirmModal = ({ isOpen, onClose, onDelete, showMsg }) => {
   );
 };
 
-export default DeleteConfirmModal;
+export default AccountDelConfimModal;

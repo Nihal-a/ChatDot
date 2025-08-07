@@ -7,10 +7,13 @@ import { useSelector, useDispatch } from "react-redux";
 const Signup = () => {
   const { isLoggedIn } = useSelector((state) => state.chatdot.user);
   const navigate = useNavigate();
-  {
-    isLoggedIn ? navigate("/") : navigate("/signin");
-  }
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigate("/", { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
 
+  console.log(isLoggedIn);
   const [isEmailSubmitted, setisEmailSubmitted] = useState(false);
   const [isEmailAuthenticated, setisEmailAuthenticated] = useState(false);
   const [isUsernameValid, setisUsernameValid] = useState();
@@ -36,7 +39,6 @@ const Signup = () => {
     email: "",
   });
   const fileInputRef = useRef(null);
-
   const EmailVerfication = async (e) => {
     e.preventDefault();
     const email = formData.email.toLowerCase();
@@ -165,7 +167,6 @@ const Signup = () => {
     } else {
       setloading(true);
       try {
-        console.log(formData.profile);
         const payload = new FormData();
         payload.append("profile", formData.profile);
         payload.append("name", formData.name);

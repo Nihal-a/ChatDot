@@ -8,6 +8,7 @@ const INITIAL_STATE = {
     name: null,
     email: null,
     profile: null,
+    about: null,
   },
   AccessToken: null,
 };
@@ -16,7 +17,10 @@ const Slicer = createSlice({
   name: "ChatDot",
   initialState: INITIAL_STATE,
   reducers: {
-    Logout: () => INITIAL_STATE,
+    Logout: (state) => {
+      // Properly reset the state to initial values
+      return INITIAL_STATE;
+    },
     login: (state, action) => {
       state.user = {
         ...state.user,

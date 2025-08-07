@@ -8,42 +8,48 @@ import Cookies from "universal-cookie";
 const Signin = () => {
   const { isLoggedIn } = useSelector((state) => state.chatdot.user);
   const navigate = useNavigate();
-
-  {
-    isLoggedIn ? navigate("/") : navigate("/signin");
-  }
   const [showPassword, setshowPassword] = useState(false);
-  const [errors, seterrors] = useState();
+  const [errors, seterrors] = useState("");
   const [loading, setloading] = useState(false);
   const [formData, setformData] = useState({
     username: "",
     password: "",
   });
   const cookie = new Cookies();
-
   const dispatch = useDispatch();
+
+  // Fixed: Use useEffect for navigation logic
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigate("/", { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
 
   const Login = async (e) => {
     e.preventDefault();
+
     if (formData.password.length < 8) {
+      seterrors("Password must be at least 8 characters long");
       return;
     }
-    `  `;
+
     try {
       setloading(true);
+      seterrors(""); // Clear previous errors
+
       const res = await fetch("http://192.168.18.144:8000/api/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
-
         body: JSON.stringify(formData),
       });
-      const data = await res.json();
 
-      if (res.status == 200) {
-        cookie.set("access", data.access);
+      const data = await res.json();
+      console.log(data.user);
+      if (res.status === 200) {
+        cookie.set("access", data.access, { path: "/" });
         dispatch(
           login({
             isLoggedIn: true,
@@ -52,16 +58,19 @@ const Signin = () => {
             name: data.user.name,
             email: data.user.email,
             profile: data.user.profile,
+            about: data.user.about,
           })
         );
-        navigate("/");
-        dispatch(login());
-      } else if (res.status == 400 || res.status == 401) {
-        seterrors(data.detail);
-        console.log("Error at login ");
+        // Navigation will be handled by useEffect
+      } else if (res.status === 400 || res.status === 401) {
+        seterrors(
+          data.detail || "Login failed. Please check your credentials."
+        );
+        console.log("Error at login");
       }
     } catch (err) {
-      console.log("Server Error at login");
+      console.log("Server Error at login:", err);
+      seterrors("Server error. Please try again later.");
     } finally {
       setloading(false);
     }
@@ -87,7 +96,7 @@ const Signin = () => {
               </p>
               <form
                 onSubmit={(e) => {
-                  loading ? "" : Login(e);
+                  if (!loading) Login(e);
                 }}
                 className="flex flex-col w-full items-center justify-center"
               >
@@ -103,6 +112,7 @@ const Signin = () => {
                     }
                     placeholder="Enter your username or email"
                     className=" w-[70%] px-2 pl-10 py-[4px] ring-1 ring-gray-200 rounded-md shadow-md  text-md font-[inter] placeholder:transparent  focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500  placeholder:text-sm placeholder:text-gray-400 "
+                    disabled={loading}
                   />
                   <label htmlFor="username">
                     <i className="bi bi-person absolute top-[3%] left-[16%] text-2xl text-black"></i>
@@ -113,15 +123,16 @@ const Signin = () => {
                     type={showPassword ? "text" : "password"}
                     value={formData.password}
                     onChange={(e) => {
-                      seterrors(""),
-                        setformData((prev) => ({
-                          ...prev,
-                          password: e.target.value,
-                        }));
+                      seterrors("");
+                      setformData((prev) => ({
+                        ...prev,
+                        password: e.target.value,
+                      }));
                     }}
                     minLength={8}
                     placeholder="Enter your password"
                     className="peer w-[70%] px-2 pl-10 py-[4px] ring-1 ring-gray-200 rounded-md shadow-md   text-md font-[inter] placeholder:transparent focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500 placeholder:text-sm placeholder:text-gray-400 "
+                    disabled={loading}
                   />
                   <label htmlFor="password">
                     <i className="bi bi-person-lock absolute top-0 left-[16%] text-2xl text-black"></i>
@@ -145,13 +156,16 @@ const Signin = () => {
                 </div>
                 <div className="relative w-full pt-3 pb-4">
                   <Link to="/forgotpass">
-                    {" "}
                     <p className="absolute right-[9%] w-full text-sm font-[poppins] font-medium pt-3 text-end pr-10  text-[#68479D] hover:underline cursor-pointer ">
                       Forgot Password?
                     </p>
-                  </Link>{" "}
+                  </Link>
                 </div>
-                <button className="relative  w-[40%] py-1 rounded-md   mt-10 ring-1 ring-[#68479D] focus:outline-0 text-white font-bold font-[inter] active:bg-[#7c62a5] bg-[#68479D]">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="relative w-[40%] py-1 rounded-md mt-10 ring-1 ring-[#68479D] focus:outline-0 text-white font-bold font-[inter] active:bg-[#7c62a5] bg-[#68479D] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   {loading ? (
                     <>
                       LOGIN
@@ -178,13 +192,12 @@ const Signin = () => {
                 </button>
               </form>
               <p className="w-full text-sm font-[poppins] font-medium pt-10 text-end pr-10 ">
-                Don’t have an account?
+                Don't have an account?
                 <Link to="/signup">
-                  {" "}
                   <span className="text-[#68479D] hover:underline cursor-pointer ">
                     Register
                   </span>
-                </Link>{" "}
+                </Link>
               </p>
             </div>
           </div>
