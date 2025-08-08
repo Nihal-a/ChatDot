@@ -14,6 +14,11 @@ const Home = () => {
   const sidebarSocketRef = useRef(null);
 
   const chatScreenRef = useRef();
+  const sidebarRef = useRef();
+
+  const handlecallGetUsers = () => {
+    sidebarRef.current?.fetchUsers();
+  };
 
   const handleBlock = (targetUsername) => {
     chatScreenRef.current?.handleBlock(targetUsername);
@@ -153,11 +158,12 @@ const Home = () => {
       }
     });
   };
-
+  console.log(latestMsg, "latest");
   return (
     <div className="w-full h-screen flex overflow-hidden font-[inter]">
       <div className="w-1/4 h-full flex flex-col border-r border-gray-200">
         <Sidebar
+          ref={sidebarRef}
           onBlock={handleBlock}
           onunBlock={handleunBlock}
           onClearChat={handleClearChat}
@@ -173,6 +179,7 @@ const Home = () => {
           onClose={handleCloseChatScreen}
           onlatestMsg={handleLatestMsg}
           updateselectUser={handleUserSelect}
+          callgetUsers={handlecallGetUsers}
           user={user}
         />
       </div>

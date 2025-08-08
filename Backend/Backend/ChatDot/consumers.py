@@ -229,14 +229,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
 
             if msg_type == "seen":
-                sender = data.get("sender")  # who is marking as seen (current user)
-                receiver = data.get("receiver")  # whose messages are being marked as seen
+                sender = data.get("sender") 
+                print(sender) 
+                receiver = data.get("receiver")  
                 
                 if sender and receiver:
-                    # Update messages FROM receiver TO sender (not the other way around)
                     updated_count = await sync_to_async(ChatMessage.objects.filter(
-                        sender=receiver,  # Messages sent by the other person
-                        receiver=sender,  # To current user
+                        sender=receiver,
+                        receiver=sender, 
                         seen=False
                     ).update)(seen=True)
 
@@ -255,34 +255,35 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             }
                         )
 
-                    # unseen_count = await sync_to_async(ChatMessage.objects.filter(
-                    #     sender=receiver, receiver=sender, seen=False
-                    # ).count)()
 
                     # await self.channel_layer.group_send(
                     #     f"user_{sender}",  # person who just opened the chat
                     #     {
-                    #         "type": "sidebar_update",
+                    #         "type": "sidebar_update", 
                     #         "data": {
-                    #             "username": receiver,
-                    #             "unread_count": unseen_count  # should be 0 now
+                    #             "username": sender,
+                    #             "last_msg": message,
+                    #             "last_msg_time": timestamp.isoformat(),
+                    #             "unseen_count": 0  
                     #         }
                     #     }
                     # )
 
 
             elif msg_type == "message":
+                
+                
                 message = data['message']
                 receiver = data['rec']
-                print(receiver)
                 current_time = datetime.now()
-
+                
 
                 # Ensure consistent ordering
                 user1 = min(self.user.username, receiver)
                 user2 = max(self.user.username, receiver)
 
                 conn = Connections.objects(me=user1, my_friend=user2).first()
+                
 
                 if conn:
                     conn.last_message = message
@@ -352,7 +353,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "username": receiver_username,
                     "last_msg": message,
                     "last_msg_time": timestamp.isoformat(),
-                    "unseen_count": 0  # Sender has no unseen messages
+                    "unseen_count": 0  
                 }
             }
         )

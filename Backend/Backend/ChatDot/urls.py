@@ -25,6 +25,9 @@ urlpatterns = [
     path('api/reject_req',reject_req),
     path('api/fake_view',fake_view),
     path('api/profile_edit',profile_edit),
+    path('api/check_password',check_password),
+    path('api/delete_account',delete_account),
+    path('api/unfriend',unfriend),
     ]
 
 if settings.DEBUG:

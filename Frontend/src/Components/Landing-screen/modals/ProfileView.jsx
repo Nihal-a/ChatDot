@@ -4,7 +4,7 @@ import { fetchWithAuth } from "../../../utils";
 import DeleteConfirmModal from "./DeleteConfirmModal";
 import AccountDelConfimModal from "./AccountDelConfimModal";
 
-const ProfileView = ({ isOpen, onClose, Seluser }) => {
+const ProfileView = ({ isOpen, onClose, Seluser, }) => {
   const [isSameUser, setisSameUser] = useState(false);
   const modalRef = useRef();
   const [formData, setformData] = useState({});
@@ -16,9 +16,7 @@ const ProfileView = ({ isOpen, onClose, Seluser }) => {
     profile: false,
   });
   const { user } = useSelector((state) => state.chatdot);
-  const [ModalMsg, setModalMsg] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedUser, setselectedUser] = useState(null);
   const triggerFileInput = () => {
     fileInputRef.current.click();
   };
@@ -41,11 +39,8 @@ const ProfileView = ({ isOpen, onClose, Seluser }) => {
   };
 
   const openDeleteModal = () => {
-    setModalMsg("confirm delete");
     setShowDeleteModal(true);
   };
-
-  const DeleteAccount = () => {};
 
   useEffect(() => {
     if (Seluser && Seluser.username == user.username) {
@@ -61,31 +56,30 @@ const ProfileView = ({ isOpen, onClose, Seluser }) => {
     }));
   }, [isOpen]);
 
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (modalRef.current && !modalRef.current.contains(e.target)) {
-        console.log("Clicked outside modal, closing...");
-        setisEdit((prev) => ({
-          name: false,
-          about: false,
-          profile: false,
-        }));
-        setShowDeleteModal(false);
-        onClose();
-      }
-    }
+  // useEffect(() => {
+  //   function handleClickOutside(e) {
+  //     if (modalRef.current && !modalRef.current.contains(e.target)) {
+  //       console.log("Clicked outside modal, closing...");
+  //       setisEdit((prev) => ({
+  //         name: false,
+  //         about: false,
+  //         profile: false,
+  //       }));
+  //       // onClose();
+  //     }
+  //   }
 
-    if (isOpen) {
-      const timeoutId = setTimeout(() => {
-        document.addEventListener("mousedown", handleClickOutside);
-      }, 100);
+  //   if (isOpen) {
+  //     const timeoutId = setTimeout(() => {
+  //       document.addEventListener("mousedown", handleClickOutside);
+  //     }, 100);
 
-      return () => {
-        clearTimeout(timeoutId);
-        document.removeEventListener("mousedown", handleClickOutside);
-      };
-    }
-  }, [isOpen, onClose]);
+  //     return () => {
+  //       clearTimeout(timeoutId);
+  //       document.removeEventListener("mousedown", handleClickOutside);
+  //     };
+  //   }
+  // }, [isOpen, onClose]);
 
   useEffect(() => {
     function handleEscape(e) {
@@ -211,9 +205,9 @@ const ProfileView = ({ isOpen, onClose, Seluser }) => {
                 </div>
               </div>
               <div className="flex   text-black mt-11">
-                <div className="flex flex-col  w-[100%]">
+                <div className="flex items-center justify-center  w-[100%]">
                   <p
-                    className="font-medium text-md font-[inter] w-full text-center cursor-pointer text-[#68479D]"
+                    className="font-medium text-md font-[inter] max-w-fit text-center cursor-pointer text-[#68479D]"
                     onClick={() => {
                       triggerFileInput();
                       setisEdit((prev) => ({
@@ -227,9 +221,9 @@ const ProfileView = ({ isOpen, onClose, Seluser }) => {
                 </div>
               </div>
               <div className="flex   text-black mt-">
-                <div className="flex   w-[100%]">
+                <div className="flex items-center justify-around  w-[100%]">
                   <p
-                    className="font-medium text-md font-[inter] w-full text-center cursor-pointer text-red-600"
+                    className="font-medium text-md font-[inter] max-w-fit text-center cursor-pointer text-red-600"
                     onClick={() => {
                       RemoveProfile();
                       setisEdit((prev) => ({
@@ -241,7 +235,7 @@ const ProfileView = ({ isOpen, onClose, Seluser }) => {
                     Remove Profile
                   </p>
                   <p
-                    className="font-medium text-md font-[inter] w-full text-center cursor-pointer text-red-600"
+                    className="font-medium text-md font-[inter] max-w-fit text-center cursor-pointer text-red-600"
                     onClick={() => {
                       openDeleteModal();
                     }}
@@ -252,7 +246,7 @@ const ProfileView = ({ isOpen, onClose, Seluser }) => {
               </div>
               <div className="flex gap-2 p-2 text-black">
                 <div className="flex flex-col gap-1 w-full">
-                  <div className="font-medium text-2xl font-[inter] w-full text-center flex items-center gap-1">
+                  <div className="font-medium text-2xl font-[inter] w-full text-center flex items-center justify-center gap-1">
                     <input
                       type="text"
                       value={formData.name}
@@ -340,11 +334,8 @@ const ProfileView = ({ isOpen, onClose, Seluser }) => {
             </form>
           </div>
           <AccountDelConfimModal
-            userid={user?.id}
             isOpen={showDeleteModal}
             onClose={() => setShowDeleteModal(false)}
-            onDelete={DeleteAccount}
-            showMsg={ModalMsg}
           />
         </div>
       ) : (

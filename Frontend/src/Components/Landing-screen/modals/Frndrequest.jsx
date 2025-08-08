@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { fetchWithAuth } from "../../../utils";
 
-const Frndrequest = ({ isOpen, onClose }) => {
+const Frndrequest = ({ isOpen, onClose, onAccept }) => {
   if (!isOpen) return null;
   const [search, setsearch] = useState("");
   const [searchResults, setsearchResults] = useState([]);
@@ -103,6 +103,7 @@ const Frndrequest = ({ isOpen, onClose }) => {
 
       if (res.status === 200) {
         get_all_request();
+        onAccept;
       } else {
         console.error("Failed to confirm req :", data.detail || res.statusText);
       }
@@ -173,7 +174,6 @@ const Frndrequest = ({ isOpen, onClose }) => {
     searchuser();
   }, [search]);
 
-  console.log(searchResults);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">

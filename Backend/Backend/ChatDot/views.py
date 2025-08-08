@@ -21,6 +21,7 @@ from django.views.decorators.csrf import csrf_exempt
 from collections import defaultdict
 from django.utils.timezone import localtime,make_aware, is_naive
 from django.db.models import Q
+from mongoengine.queryset.visitor import Q  as MongoQ
 from django.http import JsonResponse
 import re
 
@@ -316,24 +317,57 @@ def get_messages(request):
         dt = msg.datetime
         if is_naive(dt):
             dt = make_aware(dt)
+        
+        today = datetime.now().strftime("%d %B %Y")
+        yesterday = (datetime.now()-timedelta(days=1)).strftime("%d %B %Y")
 
         local_dt = localtime(dt)
         date_key = local_dt.strftime("%d %B %Y")
-        
-        grouped[date_key].append({
-            'id': str(msg.id),
-            'is_deleted':msg.is_deleted,
-            'is_edited':msg.is_edited,
-            'sender': msg.sender,
-            'receiver': msg.receiver,
-            'message': msg.message,
-            'datetime': local_dt.strftime("%H:%M:%S"),
-            'seen': msg.seen,
-            'is_deleted_by': msg.is_deleted_by,
-            'is_bothdeleted': msg.is_bothdeleted,
-            'is_bothdeleted_by': msg.is_bothdeleted_by,
-            'is_cleared_by': msg.is_cleared_by,
-        })
+        if date_key==today:   
+            grouped["Today"].append({
+                'id': str(msg.id),
+                'is_deleted':msg.is_deleted,
+                'is_edited':msg.is_edited,
+                'sender': msg.sender,
+                'receiver': msg.receiver,
+                'message': msg.message,
+                'datetime': local_dt.strftime("%H:%M:%S"),
+                'seen': msg.seen,
+                'is_deleted_by': msg.is_deleted_by,
+                'is_bothdeleted': msg.is_bothdeleted,
+                'is_bothdeleted_by': msg.is_bothdeleted_by,
+                'is_cleared_by': msg.is_cleared_by,
+            })
+        elif date_key==yesterday:
+            grouped["Yesterday"].append({
+                'id': str(msg.id),
+                'is_deleted':msg.is_deleted,
+                'is_edited':msg.is_edited,
+                'sender': msg.sender,
+                'receiver': msg.receiver,
+                'message': msg.message,
+                'datetime': local_dt.strftime("%H:%M:%S"),
+                'seen': msg.seen,
+                'is_deleted_by': msg.is_deleted_by,
+                'is_bothdeleted': msg.is_bothdeleted,
+                'is_bothdeleted_by': msg.is_bothdeleted_by,
+                'is_cleared_by': msg.is_cleared_by,
+            })
+        else:
+            grouped[date_key].append({
+                'id': str(msg.id),
+                'is_deleted':msg.is_deleted,
+                'is_edited':msg.is_edited,
+                'sender': msg.sender,
+                'receiver': msg.receiver,
+                'message': msg.message,
+                'datetime': local_dt.strftime("%H:%M:%S"),
+                'seen': msg.seen,
+                'is_deleted_by': msg.is_deleted_by,
+                'is_bothdeleted': msg.is_bothdeleted,
+                'is_bothdeleted_by': msg.is_bothdeleted_by,
+                'is_cleared_by': msg.is_cleared_by,
+            })
 
     return Response(grouped, status=status.HTTP_200_OK)
 
@@ -457,7 +491,6 @@ def search_users(request):
     from_id = request.data.get("from")
     from_user=User.objects.get(id=from_id)
     
-   
     if not search:
         return Response({"results": []})
  
@@ -501,10 +534,8 @@ def add_friend(request):
     is_to = request.data.get("to")
     is_from = request.data.get("from")
 
-
     FriendRequests(requested_by=User.objects.get(id=is_from), requested_to=is_to).save()
     
-
     return Response(status=status.HTTP_200_OK)
 
 
@@ -558,11 +589,9 @@ def confirm_request(request):
     me = min(user1, user2)
     my_friend = max(user1, user2)
 
-    # Avoid duplicates — check first
     if not Connections.objects(me=me, my_friend=my_friend).first():
         Connections(me=me, my_friend=my_friend).save()
 
-    # Remove the friend request after accepting
     req.delete()
 
     return Response(status=status.HTTP_200_OK)
@@ -588,6 +617,7 @@ def profile_edit(request):
         name = request.data.get("name", "").strip()
         about = request.data.get("about")
         profile = request.FILES.get("profile") or request.data.get("profile")
+
         user.fullname = name
 
         if about is not None:
@@ -610,8 +640,40 @@ def profile_edit(request):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def check_password(request):
+    user=request.user
+    password=request.data.get("password")
+    if not user.check_password(password):
+        return Response( status=status.HTTP_401_UNAUTHORIZED)
+    else:
+        return Response(status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def delete_account(request):
+    user=request.user
+    User.objects.get(email=user).delete()
+   
+    return Response(status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def unfriend(request):
+    me=request.data.get("me")
+    my_friend=request.data.get("my_friend")
+    Connections.objects(MongoQ(me=me, my_friend=my_friend) |MongoQ(me=my_friend, my_friend=me)).delete() 
+    ChatMessage.objects(MongoQ(sender=me, receiver=my_friend) |MongoQ(receiver=my_friend, sender=me)).delete() 
+    
+    return Response(status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
 @permission_classes([AllowAny])
 def fake_view(request):
    
+
     return Response(status=status.HTTP_200_OK)
 

@@ -13,14 +13,24 @@ import {
 } from "react";
 import { Logout } from "../Redux/Slice";
 import { fetchWithAuth } from "../../utils";
-import { format, parse, differenceInMinutes, isSameDay } from "date-fns";
+import {
+  format,
+  parse,
+  differenceInMinutes,
+  isSameDay,
+  isToday,
+  isYesterday,
+} from "date-fns";
 import Cookies from "universal-cookie";
-import Frndrequest from "./modals/frndrequest";
+import Frndrequest from "./modals/Frndrequest";
 import DeleteConfirmModal from "./modals/DeleteConfirmModal";
 import ProfileView from "./modals/ProfileView";
 
 const ChatScreen = forwardRef(
-  ({ selectedUser, onClose, onlatestMsg, updateselectUser }, ref) => {
+  (
+    { selectedUser, onClose, onlatestMsg, updateselectUser, callgetUsers },
+    ref
+  ) => {
     const { user } = useSelector((state) => state.chatdot);
 
     const [dropdown, setDropdown] = useState(false);
@@ -180,16 +190,6 @@ const ChatScreen = forwardRef(
         JSON.stringify({
           type: "clearchat",
           time: new Date().toISOString(),
-          user: user.username,
-          to: selectedUser.username,
-        })
-      );
-    };
-
-    const handleBlock = () => {
-      socketRef.current.send(
-        JSON.stringify({
-          type: "block",
           user: user.username,
           to: selectedUser.username,
         })
@@ -472,9 +472,9 @@ const ChatScreen = forwardRef(
         }
 
         if (data.type === "sidebar_update") {
-          onlatestMsg(data.data); // Pass to Home
+          onlatestMsg(data.data);
         }
-        // Handle new messages - IMPROVED
+
         if (data.type === "message" || !data.type) {
           console.log("📨 Processing new message:", data);
 
@@ -483,10 +483,15 @@ const ChatScreen = forwardRef(
             console.error("❌ Invalid message data:", data);
             return;
           }
+          if (data.isblocked && data.isblocked == user.username) {
+            return;
+          }
 
           const msgDate = new Date(data.datetime);
           const formattedDate = format(msgDate, "dd MMMM yyyy");
           const formattedTime = format(msgDate, "hh:mm a");
+          const today = format(new Date(), "dd MMMM yyyy");
+          console.log(today, "today");
 
           const newMessage = {
             id: data.id || Date.now(), // Fallback ID if not provided
@@ -511,22 +516,31 @@ const ChatScreen = forwardRef(
           setmessages((prevMessages) => {
             console.log("📚 Previous messages:", prevMessages);
 
+            let groupKey;
+            if (isToday(msgDate)) {
+              groupKey = "Today";
+            } else if (isYesterday(msgDate)) {
+              groupKey = "Yesterday";
+            } else {
+              groupKey = formattedDate;
+            }
+
             const updatedMessages = { ...prevMessages };
 
-            if (updatedMessages[formattedDate]) {
+            if (updatedMessages[groupKey]) {
               // Check if message already exists to prevent duplicates
-              const messageExists = updatedMessages[formattedDate].some(
+              const messageExists = updatedMessages[groupKey].some(
                 (msg) => msg.id === newMessage.id
               );
 
               if (!messageExists) {
-                updatedMessages[formattedDate] = [
-                  ...updatedMessages[formattedDate],
+                updatedMessages[groupKey] = [
+                  ...updatedMessages[groupKey],
                   newMessage,
                 ];
               }
             } else {
-              updatedMessages[formattedDate] = [newMessage];
+              updatedMessages[groupKey] = [newMessage];
             }
             if (
               socketRef.current &&
@@ -809,6 +823,7 @@ const ChatScreen = forwardRef(
           <Frndrequest
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)}
+            onAccept={callgetUsers}
           />
           <ProfileView
             onClose={handleCloseProfile}
@@ -1060,6 +1075,7 @@ const ChatScreen = forwardRef(
           onClose={handleCloseProfile}
           isOpen={showProfileView}
           Seluser={profileUser}
+          onAccept={callgetUsers}
         />
         <DeleteConfirmModal
           isOpen={showDeleteModal}
@@ -1071,6 +1087,7 @@ const ChatScreen = forwardRef(
         <Frndrequest
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
+          onAccept={callgetUsers}
         />
       </>
     );
