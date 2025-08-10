@@ -301,9 +301,19 @@ const ChatScreen = forwardRef(
 
       // Auto-mark messages as seen when chat opens or new messages arrive
 
+      // Update only the WebSocket message handling section of your ChatScreen component
+
       socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
         console.log("📨 Received WebSocket data:", data);
+
+        // Handle error messages (e.g., from blocking)
+        if (data.type === "error") {
+          console.error("❌ WebSocket error:", data.message);
+          // You can show a toast notification or alert here
+          // alert(data.message); // or use your preferred notification method
+          return;
+        }
 
         // Handle seen status updates
         if (data.type === "seen") {
@@ -318,7 +328,8 @@ const ChatScreen = forwardRef(
                   msg.sender === user.username &&
                   msg.receiver === selectedUser.username &&
                   data.seen_by === selectedUser.username &&
-                  data.message_sender === user.username
+                  data.message_sender === user.username &&
+                  !msg.is_ghost // Don't mark ghost messages as seen
                 ) {
                   return { ...msg, seen: true };
                 }
@@ -333,7 +344,7 @@ const ChatScreen = forwardRef(
         }
 
         if (data.type === "block") {
-          console.log("block done");
+          console.log("🚫 Block notification received");
           updateselectUser({
             ...selectedUser,
             is_blocked_by: selectedUser.is_blocked_by.includes(user.username)
@@ -343,7 +354,7 @@ const ChatScreen = forwardRef(
         }
 
         if (data.type === "unblock") {
-          console.log("unblock workssssssssss");
+          console.log("✅ Unblock notification received");
           updateselectUser({
             ...selectedUser,
             is_blocked_by: selectedUser.is_blocked_by.filter(
@@ -385,8 +396,7 @@ const ChatScreen = forwardRef(
         if (data.type === "clearchat") {
           const clearTime = new Date(data.clear_time);
           const clearUser = data.user;
-          console.log(clearTime);
-          console.log(clearUser);
+          console.log("🧹 Clear chat:", clearTime, clearUser);
 
           setmessages((prevMessages) => {
             const updated = {};
@@ -395,7 +405,6 @@ const ChatScreen = forwardRef(
               const updatedMessages = prevMessages[date].map((msg) => {
                 const isClearedBy = msg.is_cleared_by || [];
 
-                // Add the user if not already in the list
                 if (!isClearedBy.includes(clearUser)) {
                   return {
                     ...msg,
@@ -418,7 +427,7 @@ const ChatScreen = forwardRef(
         if (data.type === "deleteBoth") {
           const deletedMsgId = data.id;
           const deletedByUser = data.user;
-          console.log("🗑️ Deleting message in both with ID:", deletedMsgId);
+          console.log("🗑️ Deleting message for both with ID:", deletedMsgId);
 
           setmessages((prevMessages) => {
             const updatedMessages = {};
@@ -483,18 +492,13 @@ const ChatScreen = forwardRef(
             console.error("❌ Invalid message data:", data);
             return;
           }
-          if (data.isblocked && data.isblocked == user.username) {
-            return;
-          }
 
           const msgDate = new Date(data.datetime);
           const formattedDate = format(msgDate, "dd MMMM yyyy");
           const formattedTime = format(msgDate, "hh:mm a");
-          const today = format(new Date(), "dd MMMM yyyy");
-          console.log(today, "today");
 
           const newMessage = {
-            id: data.id || Date.now(), // Fallback ID if not provided
+            id: data.id || Date.now(),
             is_deleted_by: null,
             is_bothdeleted: false,
             is_bothdeleted_by: false,
@@ -506,13 +510,13 @@ const ChatScreen = forwardRef(
                 : user.username),
             message: data.message,
             time: formattedTime,
-            seen: false,
+            seen: data.seen || false,
             is_edited: false,
+            is_ghost: data.is_ghost || false, // Track if this is a ghost message
           };
 
           console.log("📨 New message to add:", newMessage);
 
-          // Use functional state update to ensure we get latest state
           setmessages((prevMessages) => {
             console.log("📚 Previous messages:", prevMessages);
 
@@ -528,7 +532,6 @@ const ChatScreen = forwardRef(
             const updatedMessages = { ...prevMessages };
 
             if (updatedMessages[groupKey]) {
-              // Check if message already exists to prevent duplicates
               const messageExists = updatedMessages[groupKey].some(
                 (msg) => msg.id === newMessage.id
               );
@@ -542,31 +545,21 @@ const ChatScreen = forwardRef(
             } else {
               updatedMessages[groupKey] = [newMessage];
             }
-            if (
-              socketRef.current &&
-              socketRef.current.readyState === WebSocket.OPEN
-            ) {
-              socketRef.current.send(
-                JSON.stringify({
-                  type: "seen",
-                  sender: user.username,
-                  receiver: data.sender,
-                })
-              );
-            }
 
             console.log("✅ Updated messages:", updatedMessages);
-
-            // Trigger scroll after state update
             setTimeout(() => scrollToBottom(), 0);
-
             return updatedMessages;
           });
 
-          // Auto-mark as seen if message is received from the selected user
+          // Only auto-mark as seen if:
+          // 1. Message is received from the selected user
+          // 2. It's not a ghost message
+          // 3. Current user is not blocked by sender
           if (
             data.sender === selectedUser.username &&
-            (data.receiver === user.username || !data.receiver)
+            (data.receiver === user.username || !data.receiver) &&
+            !data.is_ghost &&
+            !selectedUser.is_blocked_by?.includes(data.sender)
           ) {
             console.log(
               "👀 Auto-sending seen notification for message from",

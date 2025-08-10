@@ -16,6 +16,7 @@ class ChatMessage(Document):
     is_edited = BooleanField(default=False)
     is_cleared_by = ListField(StringField(),default=list)
     is_cleared_by_time = DateTimeField()
+    is_ghost_delivery = BooleanField(default=False)
 
 
 class Connections(Document):

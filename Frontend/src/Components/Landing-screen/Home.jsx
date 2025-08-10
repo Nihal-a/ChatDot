@@ -40,28 +40,31 @@ const Home = () => {
     );
 
     socket.onopen = () => {
-      console.log("Sidebar WebSocket connected!");
+      console.log("Home WebSocket connected!");
     };
 
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        
         if (data.type === "sidebar_update") {
-          console.log("saaanam vannu");
-          console.log("🔁 Sidebar update received:", data.data);
+          console.log("📱 Sidebar update received:", data.data);
           handleSidebarUpdate(data.data);
+        } else if (data.type === "error") {
+          console.error("WebSocket error:", data.message);
+          // Handle error messages from blocked users, etc.
         }
       } catch (err) {
-        console.error("Sidebar WS parse error:", err);
+        console.error("Home WS parse error:", err);
       }
     };
 
     socket.onclose = () => {
-      console.log("Sidebar WebSocket disconnected");
+      console.log("Home WebSocket disconnected");
     };
 
     socket.onerror = (error) => {
-      console.error("Sidebar WebSocket error:", error);
+      console.error("Home WebSocket error:", error);
     };
 
     sidebarSocketRef.current = socket;
@@ -78,6 +81,7 @@ const Home = () => {
   };
 
   const handleUserSelect = (user) => {
+    console.log("🎯 User selected:", user.username);
     setselectedUser(user);
 
     // When user selects a chat, immediately mark their unseen count as 0
@@ -90,15 +94,15 @@ const Home = () => {
 
   // Handle sidebar updates from WebSocket
   const handleSidebarUpdate = (updateData) => {
-    console.log("Processing sidebar update:", updateData);
+    console.log("🔄 Processing sidebar update:", updateData);
 
     const { username, last_msg, last_msg_time, unseen_count } = updateData;
 
-    // If user is currently selected and chat is open, set unseen count to 0
-    const finalUnseenCount =
-      selectedUser && selectedUser.username === username
-        ? 0
-        : unseen_count || 0;
+    // Critical: If user is currently selected and chat is open, force unseen count to 0
+    const isCurrentlySelected = selectedUser && selectedUser.username === username;
+    const finalUnseenCount = isCurrentlySelected ? 0 : (unseen_count || 0);
+
+    console.log(`📊 Update for ${username}: unseen=${unseen_count}, selected=${isCurrentlySelected}, final=${finalUnseenCount}`);
 
     const newUpdate = {
       username: username,
@@ -135,18 +139,26 @@ const Home = () => {
   };
 
   const handleLatestMsg = (latest) => {
-    console.log("Direct latest message update:", latest);
+    console.log("📨 Direct latest message update:", latest);
+    
     setlatestMsg((prevList) => {
       const existingIndex = prevList.findIndex(
         (item) => item.username === latest.username
       );
+
+      // If this is for the currently selected user, force unseen count to 0
+      const isCurrentlySelected = selectedUser && selectedUser.username === latest.username;
+      const finalLatest = {
+        ...latest,
+        unseen_count: isCurrentlySelected ? 0 : (latest.unseen_count || 0)
+      };
 
       if (existingIndex !== -1) {
         // Overwrite existing and move to top
         const updatedList = [...prevList];
         updatedList[existingIndex] = {
           ...updatedList[existingIndex],
-          ...latest,
+          ...finalLatest,
         };
 
         // Move to top
@@ -154,11 +166,13 @@ const Home = () => {
         return [updatedUser, ...updatedList];
       } else {
         // Add new to top
-        return [latest, ...prevList];
+        return [finalLatest, ...prevList];
       }
     });
   };
-  console.log(latestMsg, "latest");
+
+  console.log("📋 Current latestMsg state:", latestMsg);
+  
   return (
     <div className="w-full h-screen flex overflow-hidden font-[inter]">
       <div className="w-1/4 h-full flex flex-col border-r border-gray-200">
@@ -169,7 +183,8 @@ const Home = () => {
           onClearChat={handleClearChat}
           onselectUser={handleUserSelect}
           latestMsg={latestMsg}
-          onSidebarUpdate={handleSidebarUpdate} // Pass the callback
+          selectedUser={selectedUser} // Pass selected user to sidebar
+          onSidebarUpdate={handleSidebarUpdate}
         />
       </div>
       <div className="w-3/4 h-full flex flex-col bg-[#EFEDF8]">
