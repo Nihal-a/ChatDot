@@ -174,10 +174,9 @@ const Frndrequest = ({ isOpen, onClose, onAccept }) => {
     searchuser();
   }, [search]);
 
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-[50%] h-[70%] shadow-lg flex flex-col">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg md:w-[70%] md:h-[70%] w-[90%] h-[60%] shadow-lg flex flex-col">
         <div className="flex justify-between items-center border-b pb-2 mb-4 flex-shrink-0">
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
             Make Circle Bigger!!
@@ -189,7 +188,7 @@ const Frndrequest = ({ isOpen, onClose, onAccept }) => {
             X
           </button>
         </div>
-        <div className="flex-1 grid grid-cols-2 gap-4 min-h-0">
+        <div className="flex-1 grid md:grid-cols-2 gap-4 min-h-2">
           <div className="flex flex-col min-h-0">
             <p className="text-white dark:text-white text-2xl pb-3.5 flex-shrink-0">
               Friend Requests
@@ -245,7 +244,7 @@ const Frndrequest = ({ isOpen, onClose, onAccept }) => {
             </div>
           </div>
           <div className="flex flex-col min-h-0">
-            <div className="flex-shrink-0 mb-2">
+            <div className="flex-shrink-0 mb-2 flex justify-start">
               <div className="relative w-full ml-3">
                 <p className="text-white dark:text-white text-2xl pb-3.5 flex-shrink-0">
                   Add Friends
@@ -257,7 +256,7 @@ const Frndrequest = ({ isOpen, onClose, onAccept }) => {
                   placeholder="Search or find your friend"
                   className="w-[95%] py-2 ml-3 mb-2.5 pl-10 pr-4 text-sm rounded-md ring-1 ring-gray-300 focus:outline-none placeholder:text-gray-300 text-white"
                 />
-                <i className="bi bi-search absolute left-6 top-1.5 text-gray-500 text-md"></i>
+                <i className="bi bi-search absolute left-6 bottom-4 text-gray-500 text-md"></i>
               </div>
             </div>
             <div
@@ -271,7 +270,7 @@ const Frndrequest = ({ isOpen, onClose, onAccept }) => {
                             transition-shadow duration-300 flex items-center justify-between w-full text-white rounded-md p-3 mb-4"
                 >
                   {/* Avatar */}
-                  <div className=" bg-gray-600 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0 flex items-center justify-center">
+                  <div className="hidden  bg-gray-600 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0 md:flex items-center justify-center">
                     {user?.profile ? (
                       <img
                         src={`http://192.168.18.144:8000${user.profile}`}
@@ -287,8 +286,8 @@ const Frndrequest = ({ isOpen, onClose, onAccept }) => {
 
                   {/* User Info */}
                   <div className="flex flex-col ml-6 flex-grow min-w-0 ">
-                    <p className="truncate">{user.name}</p>
-                    <p className="truncate">{user.username}</p>
+                    <p className="truncate text-xl font-bold">{user.name}</p>
+                    <p className="hidden md:block truncate text-md">{user.username}</p>
                   </div>
 
                   {/* Buttons */}
@@ -296,7 +295,7 @@ const Frndrequest = ({ isOpen, onClose, onAccept }) => {
                     <button
                       className={`rounded-md py-0.5 px-2 ring-1 ${
                         user.is_friend
-                          ? "ring-[#68479D] bg-[#68479D]"
+                          ? "ring-[#68479D] bg-[#68479D] "
                           : user.is_already_requested
                           ? "ring-red-500 bg-red-500"
                           : "ring-green-700 bg-green-700"
@@ -306,7 +305,7 @@ const Frndrequest = ({ isOpen, onClose, onAccept }) => {
                           : user.is_already_requested
                           ? "hover:bg-red-700 "
                           : "hover:bg-green-800 "
-                      }  text-white text-sm font-medium  cursor-pointer`}
+                      }  text-white md:text-sm text-xs font-medium  cursor-pointer`}
                       onClick={() => {
                         user.is_friend
                           ? ""
@@ -316,13 +315,13 @@ const Frndrequest = ({ isOpen, onClose, onAccept }) => {
                       }}
                     >
                       {user.is_friend ? (
-                        <> Already Friend</>
+                        <i class="bi bi-person-check-fill"></i>
                       ) : user.is_already_requested ? (
                         <>
-                          <i className="bi bi-x-circle-fill"></i> Cancel Request
+                          <i class="bi bi-person-dash-fill"></i>
                         </>
                       ) : (
-                        <i className="bi bi-person-plus-fill"></i>
+                        <i class="bi bi-person-plus-fill"></i>
                       )}
                     </button>
                   </div>

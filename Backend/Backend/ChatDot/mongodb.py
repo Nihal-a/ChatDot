@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField , BooleanField, ListField
+from mongoengine import Document, StringField, DateTimeField , BooleanField, ListField, ImageField
 import datetime
 
 class ChatMessage(Document):
@@ -9,7 +9,7 @@ class ChatMessage(Document):
     seen = BooleanField(default=False)  
     is_deleted = BooleanField(default=False)
     is_bothdeleted = BooleanField(default=False)
-    datetime = DateTimeField(default=datetime.datetime.utcnow)
+    # datetime = DateTimeField(default=datetime.datetime.utcnow)
     deleted_by = ListField(StringField())
     is_deleted_by = ListField(StringField())
     is_bothdeleted_by = StringField(required=False)
@@ -17,6 +17,9 @@ class ChatMessage(Document):
     is_cleared_by = ListField(StringField(),default=list)
     is_cleared_by_time = DateTimeField()
     is_ghost_delivery = BooleanField(default=False)
+    format = StringField(required=True,default="text")
+    image = ImageField(null=True, blank=True, required=False)
+
 
 
 class Connections(Document):
@@ -26,8 +29,5 @@ class Connections(Document):
     last_message =  StringField(null=True, blank=True, required=False)
     last_message_time = DateTimeField(null=True, blank=True, required=False)
     is_blocked_by = ListField(StringField())
-
-
-
 
 

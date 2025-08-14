@@ -128,7 +128,6 @@ def Login(request):
     access_token = str(refresh.access_token)
     refresh_token = str(refresh)
 
-
     res = Response({
         'detail':"Login Successfull",
         'access': access_token,
@@ -138,7 +137,8 @@ def Login(request):
         'email': user.email,
         'name': user.fullname,
         'about': user.about,
-        'profile': user.profile.url if user.profile else ""
+        'profile': user.profile.url if user.profile else "",
+        'notfication_count':FriendRequests.objects.filter(requested_to=user.username).count()
         }
     }, status=status.HTTP_200_OK)
 
@@ -179,7 +179,6 @@ def logout_view(request):
 @permission_classes([IsAuthenticated])
 def get_userdata(request):
     user=request.user
-    print(user.about,"----user")
     res = Response({
         'user': {
         'id': user.id,
@@ -187,6 +186,7 @@ def get_userdata(request):
         'email': user.email,
         'name': user.fullname,
         'about': user.about,
+        'notfication_count':FriendRequests.objects.filter(requested_to=user.username).count(),
         'profile': user.profile.url if user.profile  else None
         }
     }, status=status.HTTP_200_OK)
@@ -291,8 +291,29 @@ def get_messages(request):
 
     if not sender or not receiver:
         return Response({'detail': 'Sender and receiver are required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    last_msg = ChatMessage.objects(
+        MongoQ(sender=sender, receiver=receiver) | MongoQ(sender=receiver, receiver=sender),
+        is_bothdeleted=False  
+        # & ~Q(deleted_by=sender)  
+    ).order_by('-timestamp').first()
 
-    # Mark unseen messages as seen
+
+    if last_msg:
+        Connections.objects(
+            MongoQ(me=sender, my_friend=receiver) | MongoQ(me=receiver, my_friend=sender)
+        ).update_one(
+            set__last_message=last_msg.message,
+            set__last_message_time=last_msg.timestamp
+        )
+    else:
+        Connections.objects(
+            MongoQ(me=sender, my_friend=receiver) | MongoQ(me=receiver, my_friend=sender)
+        ).update_one(
+            set__last_message=None,
+            set__last_message_time=None
+        )
+
     ChatMessage.objects.filter(
         __raw__={
             "$or": [
@@ -309,12 +330,12 @@ def get_messages(request):
                 {"sender": receiver, "receiver": sender}
             ]
         }
-    ).order_by('datetime')
+    ).order_by('timestamp')
 
     grouped = defaultdict(list)
 
     for msg in messages:
-        dt = msg.datetime
+        dt = msg.timestamp
         if is_naive(dt):
             dt = make_aware(dt)
         
@@ -395,6 +416,12 @@ def get_users(request):
             continue
 
         seen_usernames.add(other_username)
+
+
+        today = datetime.today().date()
+        yesterday = today - timedelta(days=1)
+
+
 
         try:
             other_user = User.objects.get(username=other_username)
@@ -616,21 +643,30 @@ def profile_edit(request):
 
         name = request.data.get("name", "").strip()
         about = request.data.get("about")
-        profile = request.FILES.get("profile") or request.data.get("profile")
+        profile = request.FILES.get("profile")
+        operation = request.data.get("operation")
+        print(operation)
+        print(profile)
+
+
+
+        print(profile)
 
         user.fullname = name
 
         if about is not None:
             user.about = about
 
-        if profile is None:
-            user.profile = user.profile
-        elif profile is not None:
-            user.profile = profile
-        elif profile =="remove":
+        if operation=="remove":
             user.profile = None
+        elif operation=="change":
+            user.profile = profile
+        elif operation=="nochange":
+            ...
 
-
+        # if remove is not None and remove == "remove":
+        #     user.profile = None
+        #     print("okok")
         user.save()
 
         return Response({"detail": "Profile updated successfully"}, status=200)

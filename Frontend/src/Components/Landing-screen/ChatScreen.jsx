@@ -32,7 +32,6 @@ const ChatScreen = forwardRef(
     ref
   ) => {
     const { user } = useSelector((state) => state.chatdot);
-
     const [dropdown, setDropdown] = useState(false);
     const [msgalterdropdown, setmsgalterdropdown] = useState(false);
     const [dropdownPosition, setDropdownPosition] = useState("bottom");
@@ -115,22 +114,42 @@ const ChatScreen = forwardRef(
         setmsgalterdropdown(true);
         return;
       }
+      console.log(date);
 
-      const msgTime = parse(
-        `${date} ${msg.time}`,
-        "dd MMMM yyyy hh:mm a",
-        new Date()
-      );
       const now = new Date();
+      console.log(date);
+      if (date === "Today") {
+        const todayStr = format(now, "dd MMMM yyyy");
 
-      const canEditOrDeleteForEveryone =
-        isSameDay(now, msgTime) && differenceInMinutes(now, msgTime) < 10;
+        const msgTime = parse(
+          `${todayStr} ${msg.time}`,
+          "dd MMMM yyyy hh:mm a",
+          new Date()
+        );
+        console.log(todayStr);
+        const canEditOrDeleteForEveryone =
+          isSameDay(now, msgTime) && differenceInMinutes(now, msgTime) < 10;
 
-      setmsgAlterOptions({
-        msg_id: msgid,
-        alterPermissible: canEditOrDeleteForEveryone,
-      });
-      console.log(canEditOrDeleteForEveryone);
+        setmsgAlterOptions({
+          msg_id: msgid,
+          alterPermissible: canEditOrDeleteForEveryone,
+        });
+      } else {
+        const msgTime = parse(
+          `${date} ${msg.time}`,
+          "dd MMMM yyyy hh:mm a",
+          new Date()
+        );
+
+        const canEditOrDeleteForEveryone =
+          isSameDay(now, msgTime) && differenceInMinutes(now, msgTime) < 10;
+
+        setmsgAlterOptions({
+          msg_id: msgid,
+          alterPermissible: canEditOrDeleteForEveryone,
+        });
+        console.log(canEditOrDeleteForEveryone);
+      }
 
       setTimeout(() => {
         const msgElement = document.getElementById(`msg-${msgid}`);
@@ -765,14 +784,17 @@ const ChatScreen = forwardRef(
       return (
         <>
           <div className="h-[8%] flex items-center justify-end px-4 py-2 gap-4 bg-white border-b border-gray-200">
-            <button
+            <div
+              className={`relative w-[40px] h-[40px] rounded-full bg-white  ${
+                user.notfication_count > 0
+                  ? "ring-green-700 ring-2"
+                  : "ring-[#68479D] ring-1"
+              } overflow-hidden cursor-pointer flex items-center justify-center`}
               onClick={() => setIsModalOpen(true)}
-              className="px-3 py-0.5 rounded-md font-medium ring-1 ring-[#68479D] focus:outline-0 text-white font-[poppins] active:bg-[#7c62a5] bg-[#68479D]"
-              type="button"
             >
-              Add Friends
-            </button>
-            <i className="bi bi-bell text-xl"></i>
+              <i class="absolute  bi bi-person-fill-add text-2xl text-[#68479D]"></i>
+            </div>
+
             <div
               onClick={() => setDropdown(!dropdown)}
               className="w-[40px] h-[40px] rounded-full bg-white ring-1 ring-[#68479D] overflow-hidden cursor-pointer"
@@ -830,14 +852,16 @@ const ChatScreen = forwardRef(
     return (
       <>
         <div className="h-[8%] flex items-center justify-end px-4 py-2 gap-4 bg-white border-b border-gray-200">
-          <button
+          <div
+            className={`relative w-[40px] h-[40px] rounded-full bg-white  ${
+              user.notfication_count > 0
+                ? "ring-green-700 ring-2"
+                : "ring-[#68479D] ring-1"
+            } overflow-hidden cursor-pointer flex items-center justify-center`}
             onClick={() => setIsModalOpen(true)}
-            className="px-3 py-0.5 rounded-md font-medium ring-1 ring-[#68479D] focus:outline-0 text-white font-[poppins] active:bg-[#7c62a5] bg-[#68479D]"
-            type="button"
           >
-            Add Friends
-          </button>
-          <i className="bi bi-bell text-xl"></i>
+            <i class="absolute  bi bi-person-fill-add text-2xl text-[#68479D]"></i>
+          </div>
 
           <div
             onClick={() => setDropdown(!dropdown)}
@@ -913,14 +937,14 @@ const ChatScreen = forwardRef(
                       <div
                         id={`msg-${msg.id}`}
                         key={`${msg.id}-${index}`}
-                        className={`relative w-fit min-w-[8%] max-w-[70%] px-2 py-1 pb-3.5 rounded-lg mb-1 ${
+                        className={`relative w-fit md:min-w-[12%] min-w-[25%] md:max-w-[70%] max-w-[80%] wrap-break-word px-2 py-1 pb-3.5 rounded-lg mb-1 ${
                           isMe
                             ? "bg-[#68479D] text-white self-end ml-auto group"
                             : "bg-white self-start group"
                         }`}
                       >
                         {/* Message text */}
-                        <p className="whitespace-pre-wrap text-sm">
+                        <p className="whitespace-pre-wrap md:text-sm text-[16px] ">
                           {deletedGlobally
                             ? deletedGlobally_by === user.username
                               ? "You deleted this message"
@@ -1003,7 +1027,7 @@ const ChatScreen = forwardRef(
                         <p
                           className={`absolute ${
                             isMe ? "right-5" : "right-2.5"
-                          } bottom-0.5 text-[9px] text-gray-300`}
+                          } bottom-0.5 md:text-[9px] text-[8px] text-gray-300`}
                         >
                           {msg.time}
                         </p>
@@ -1048,6 +1072,7 @@ const ChatScreen = forwardRef(
           </div>
         ) : (
           <div className="h-[8%] flex items-center justify-between px-4 py-3 bg-white border-t rounded-t-xl border-gray-200 max-h-32">
+            <i class="bi bi-plus"></i>
             <textarea
               ref={textareaRef}
               value={input}

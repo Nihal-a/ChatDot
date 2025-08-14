@@ -211,9 +211,9 @@ const Signup = () => {
   return (
     <section className="h-screen w-full flex items-center justify-center">
       <div className="modal w-[65%] h-[72%] ">
-        <div className="h-full w-full grid grid-cols-3 ">
+        <div className="h-full w-full grid md:grid-cols-3 ">
           {isEmailSubmitted ? (
-            <div className="h-full w-full col-span-2 flex items-center justify-center">
+            <div className=" h-full w-full md:col-span-2 flex items-center justify-center">
               <form
                 className="h-full w-full flex items-center justify-center"
                 onSubmit={
@@ -224,14 +224,14 @@ const Signup = () => {
                       }
                 }
               >
-                <div className="w-full h-full flex flex-col items-center justify-center border-2 rounded-l-xl border-amber-200">
+                <div className="w-full md:h-full flex flex-col items-center justify-center border-2 md:rounded-l-xl border-amber-200 p-6">
                   <div className="w-full flex flex-col justify-center items-center">
-                    <p className="relative text-3xl font-medium font-[poppins]">
+                    <p className="relative md:text-3xl  font-medium font-[poppins]">
                       {isEmailAuthenticated ? (
                         ""
                       ) : (
                         <i
-                          className=" bi bi-arrow-left-square absolute bottom-[230%] -left-[0%] text-3xl"
+                          className=" bi bi-arrow-left-square absolute bottom-[230%] -left-[0%] text-3xl "
                           onClick={() => {
                             setisEmailSubmitted(false),
                               setformData((prev) => ({ ...prev, otp: "" })),
@@ -243,7 +243,7 @@ const Signup = () => {
                         ? "Claim your username and create password"
                         : "Please enter your authenticate code"}
                     </p>
-                    <p className=" text-sm   font-light font-[poppins] pe-[36%]">
+                    <p className=" md:text-sm text-xs font-light font-[poppins] pe-[36%]">
                       {isEmailAuthenticated
                         ? ""
                         : "code has been send to your given email id"}
@@ -423,7 +423,7 @@ const Signup = () => {
                       </button>
                     </>
                   ) : (
-                    <div className="w-full relative flex flex-col items-center justify-center mt-10">
+                    <div className="w-full relative flex flex-col items-center justify-center md:mt-10 mt-7">
                       <input
                         type="text"
                         value={formData.otp}
@@ -443,7 +443,7 @@ const Signup = () => {
                       {isOtpValid.valid ? (
                         ""
                       ) : (
-                        <p className="absolute -bottom-[80%] left-[17%] text-[13px] font-light font-[inter] text-red-500">
+                        <p className="absolute md:-bottom-[80%] -bottom-[60%] left-[17%] text-[13px] font-light font-[inter] text-red-500">
                           {isOtpValid.reason}
                         </p>
                       )}
@@ -453,7 +453,7 @@ const Signup = () => {
                       <p className="peer peer-invalid:visible absolute -bottom-[80%] left-[17%] text-[13px] font-light font-[inter] invisible text-red-500">
                         Please enter minimum 4 digit
                       </p>
-                      <button className="absolute w-[30%] bottom-[3%] right-[15%] py-1 rounded-md  mt-10 ring-1 ring-[#68479D] focus:outline-0 text-white font-bold font-[inter] active:bg-[#7c62a5] bg-[#68479D]">
+                      <button className="absolute md:text-md  md:w-[30%] bottom-[3%] right-[15%] py-1 rounded-md  md:mt-10 ring-1 ring-[#68479D] focus:outline-0 text-white md:font-bold font-medium font-[inter] active:bg-[#7c62a5] bg-[#68479D]">
                         {newotp ? "Get new otp" : " VERIFY OTP"}
                         {loading ? (
                           <>
@@ -484,19 +484,19 @@ const Signup = () => {
               </form>
             </div>
           ) : (
-            <div className="h-full w-full col-span-2 flex items-center justify-center">
+            <div className="h-full w-full md:col-span-2 flex items-center justify-center">
               <form
-                className="h-full w-full flex items-center justify-center"
+                className="md:h-full w-full flex items-center justify-center "
                 onSubmit={(e) => {
                   EmailVerfication(e);
                 }}
               >
-                <div className="w-full h-full flex flex-col items-center justify-center rounded-l-xl border-2  border-amber-200">
-                  <p className="relative text-4xl font-bold font-[poppins] mb-4.5">
+                <div className="w-full h-full py-8 px-6 flex flex-col items-center justify-center md:rounded-l-xl border-2  border-amber-200">
+                  <p className="relative text-2xl md:text-4xl font-bold font-[poppins] mb-4.5">
                     Let’s Get Started.
                   </p>
 
-                  <div className="w-full relative flex flex-col items-center justify-center mt-10">
+                  <div className="w-full relative flex flex-col items-center justify-center md:mt-10">
                     <input
                       type="text"
                       value={formData.name}
@@ -509,16 +509,16 @@ const Signup = () => {
                       minLength={3}
                       required
                       placeholder="Enter your name"
-                      className="peer w-[70%] px-2 pl-10 py-[4px] ring-1 ring-gray-200 rounded-md shadow-md   text-md font-[inter] placeholder:transparent  focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500  placeholder:text-sm placeholder:text-gray-400 "
+                      className="peer md:placeholder:text-md placeholder:text-xs w-[70%] px-2 pl-10 py-[4px] ring-1 ring-gray-200 rounded-md shadow-md   md:text-md text-sm font-[inter] placeholder:transparent  focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500  placeholder:text-gray-400 "
                     />
                     <label htmlFor="name">
-                      <i className="bi bi-person absolute top-[3%] left-[16%] text-2xl text-black"></i>
+                      <i className="bi bi-person absolute md:top-0 md:left-[16%] md:text-2xl text-xl text-black top-0.5 left-[17%]"></i>
                     </label>
-                    <p className="absolute -bottom-[80%] left-[17%] text-[13px] font-light font-[inter] invisible peer-[&:not(:placeholder-shown):invalid]:visible text-red-500 text-sm ">
+                    <p className="absolute md:-bottom-[80%] -bottom-[60%] left-[17%] md:text-[13px] text-[10px] font-light font-[inter] invisible peer-[&:not(:placeholder-shown):invalid]:visible text-red-500 ">
                       Please enter minimum 3 characters
                     </p>
                   </div>
-                  <div className="w-full relative flex flex-col items-center justify-center mt-10">
+                  <div className="w-full relative flex flex-col items-center justify-center md:mt-10 mt-5 ">
                     <input
                       type="email"
                       value={formData.email}
@@ -530,13 +530,13 @@ const Signup = () => {
                           }));
                       }}
                       placeholder="Enter your email"
-                      className="peer w-[70%] px-2 pl-10 py-[4px] ring-1 ring-gray-200 rounded-md shadow-md   text-md font-[inter] placeholder:transparent focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500 placeholder:text-sm placeholder:text-gray-400 "
+                      className="peer md:placeholder:text-md placeholder:text-xs w-[70%] px-2 pl-10 py-[4px] ring-1 ring-gray-200 rounded-md shadow-md md:text-md text-sm font-[inter] placeholder:transparent focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500  placeholder:text-gray-400 "
                     />
                     <label htmlFor="email">
-                      <i className="bi bi-at absolute top-[3%] left-[16%] text-2xl text-black"></i>
+                      <i className="bi bi-at absolute md:top-[3%] md:left-[16%] md:text-2xl text-xl text-black top-0.5 left-[17%]"></i>
                     </label>
                     {errors.email && (
-                      <p className="absolute -bottom-[80%] left-[17%] text-[13px] font-light font-[inter] text-sm text-red-500 ">
+                      <p className="absolute md:-bottom-[80%] -bottom-[60%] left-[17%] md:text-[13px] text-[10px] font-light font-[inter]  text-red-500 ">
                         {errors && errors.email}
                       </p>
                     )}
@@ -544,7 +544,7 @@ const Signup = () => {
                       Please enter valid email id
                     </p> */}
                   </div>
-                  <button className=" relative w-[40%] py-1 flex items-center justify-center rounded-md  mt-10 ring-1 ring-[#68479D] focus:outline-0 text-white font-bold font-[inter] active:bg-[#7c62a5] bg-[#68479D]">
+                  <button className=" relative w-[40%] py-1 flex items-center justify-center rounded-md  md:mt-10 mt-6 ring-1 ring-[#68479D] focus:outline-0 text-white font-bold font-[inter] active:bg-[#7c62a5] bg-[#68479D]">
                     {loading ? (
                       <>
                         SUBMIT
@@ -569,7 +569,7 @@ const Signup = () => {
                       "SUBMIT"
                     )}
                   </button>
-                  <p className="w-full text-sm font-[poppins] font-medium pt-10 text-end pr-10 ">
+                  <p className="w-full md:text-sm text-xs  font-[poppins] font-medium md:pt-10 pt-4 text-end md:pr-10 ">
                     Have an account?{" "}
                     <Link to="/signin">
                       <span className="text-[#68479D] hover:underline  cursor-pointer">
@@ -583,7 +583,7 @@ const Signup = () => {
           )}
 
           <div
-            className="w-full h-full flex flex-col items-center justify-center border-2 bg-amber-200
+            className="hidden  w-full h-full md:flex flex-col items-center justify-center border-2 bg-amber-200
            rounded-r-xl  border-amber-200"
           >
             <p>Color fill</p>

@@ -4,7 +4,7 @@ import { fetchWithAuth } from "../../../utils";
 import DeleteConfirmModal from "./DeleteConfirmModal";
 import AccountDelConfimModal from "./AccountDelConfimModal";
 
-const ProfileView = ({ isOpen, onClose, Seluser, }) => {
+const ProfileView = ({ isOpen, onClose, Seluser }) => {
   const [isSameUser, setisSameUser] = useState(false);
   const modalRef = useRef();
   const [formData, setformData] = useState({});
@@ -29,13 +29,6 @@ const ProfileView = ({ isOpen, onClose, Seluser, }) => {
         profile: file,
       }));
     }
-  };
-
-  const RemoveProfile = () => {
-    setformData((prev) => ({
-      ...prev,
-      profile: "remove",
-    }));
   };
 
   const openDeleteModal = () => {
@@ -113,7 +106,13 @@ const ProfileView = ({ isOpen, onClose, Seluser, }) => {
       payload.append("name", formData.name);
       payload.append("about", formData.about);
 
-      if (profilepic) {
+      if (formData.profile == null && profilepic == null) {
+        payload.append("profile", null);
+        payload.append("operation", "remove");
+      } else if (profilepic == null && formData.profile !== null) {
+        payload.append("operation", "nochange");
+      } else {
+        payload.append("operation", "change");
         payload.append("profile", formData.profile);
       }
       console.log(profilepic);
@@ -157,7 +156,7 @@ const ProfileView = ({ isOpen, onClose, Seluser, }) => {
         >
           <div
             ref={modalRef}
-            className="bg-white dark:bg-white p-6 rounded-lg w-[25%] h-[65%] shadow-lg flex flex-col"
+            className="bg-white dark:bg-white p-6 rounded-lg md:w-[25%] md:h-[70%] w-[90%] h-[75%] shadow-lg flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <form action="submit" onSubmit={handleProfileEdit}>
@@ -175,7 +174,7 @@ const ProfileView = ({ isOpen, onClose, Seluser, }) => {
               </div>
 
               <div className="relative w-full h-[120px] ring-1 ring-black bg-black rounded-md">
-                <div className="absolute left-1/2 top-full -translate-y-1/2 -translate-x-1/2 w-[85px] h-[85px] outline-5 outline-white flex items-center justify-center bg-amber-100 text-xl font-bold rounded-full overflow-hidden">
+                <div className="absolute left-1/2 top-full -translate-y-1/2 -translate-x-1/2 w-[85px]  h-[85px]  outline-5 outline-white flex items-center justify-center bg-amber-100 text-xl font-bold rounded-full overflow-hidden">
                   {formData?.profile ? (
                     <img
                       src={
@@ -207,7 +206,7 @@ const ProfileView = ({ isOpen, onClose, Seluser, }) => {
               <div className="flex   text-black mt-11">
                 <div className="flex items-center justify-center  w-[100%]">
                   <p
-                    className="font-medium text-md font-[inter] max-w-fit text-center cursor-pointer text-[#68479D]"
+                    className="font-medium md:text-md text-sm font-[inter] max-w-fit text-center cursor-pointer text-[#68479D]"
                     onClick={() => {
                       triggerFileInput();
                       setisEdit((prev) => ({
@@ -223,19 +222,23 @@ const ProfileView = ({ isOpen, onClose, Seluser, }) => {
               <div className="flex   text-black mt-">
                 <div className="flex items-center justify-around  w-[100%]">
                   <p
-                    className="font-medium text-md font-[inter] max-w-fit text-center cursor-pointer text-red-600"
+                    className="font-medium md:text-md text-sm font-[inter] max-w-fit text-center cursor-pointer text-red-600"
                     onClick={() => {
-                      RemoveProfile();
+                      setformData((prev) => ({
+                        ...prev,
+                        profile: null,
+                      }));
                       setisEdit((prev) => ({
                         ...prev,
                         profile: true,
                       }));
+                      setprofilepic(null);
                     }}
                   >
                     Remove Profile
                   </p>
                   <p
-                    className="font-medium text-md font-[inter] max-w-fit text-center cursor-pointer text-red-600"
+                    className="font-medium md:text-md text-sm font-[inter] max-w-fit text-center cursor-pointer text-red-600"
                     onClick={() => {
                       openDeleteModal();
                     }}
@@ -246,7 +249,7 @@ const ProfileView = ({ isOpen, onClose, Seluser, }) => {
               </div>
               <div className="flex gap-2 p-2 text-black">
                 <div className="flex flex-col gap-1 w-full">
-                  <div className="font-medium text-2xl font-[inter] w-full text-center flex items-center justify-center gap-1">
+                  <div className="font-medium md:text-2xl text-xl font-[inter] w-full text-center flex items-center justify-center gap-1">
                     <input
                       type="text"
                       value={formData.name}
@@ -278,16 +281,16 @@ const ProfileView = ({ isOpen, onClose, Seluser, }) => {
                     ></i>
                   </div>
 
-                  <p className="font-medium text-md font-[inter] flex items-center gap-1.5 pt-3">
+                  <p className="font-medium md:text-lg text-sm font-[inter] flex items-center gap-1.5 pt-3">
                     <i className="bi bi-person"></i> {formData.username}
                   </p>
-                  <p className="font-medium text-md font-[inter] flex items-center gap-1.5 pt-1.5">
+                  <p className="font-medium md:text-lg text-sm font-[inter] flex items-center gap-1.5 pt-1.5">
                     <i className="bi bi-envelope"></i> {formData.email}
                   </p>
                 </div>
               </div>
               <div className="flex flex-col gap-1 p-2 w-[100%] pt-5">
-                <p className="font-medium text-xl font-[poppins] border-b pl-1.5 flex items-center gap-2">
+                <p className="font-medium md:text-xl text-md font-[poppins] border-b pl-1.5 flex items-center gap-2">
                   About
                   <i
                     class="bi bi-pencil text-sm  cursor-pointer"
@@ -345,7 +348,7 @@ const ProfileView = ({ isOpen, onClose, Seluser, }) => {
         >
           <div
             ref={modalRef}
-            className="bg-white dark:bg-white p-6 rounded-lg w-[25%] h-[65%] shadow-lg flex flex-col"
+            className="bg-white dark:bg-white p-6 rounded-lg md:w-[40%] md:h-[70%] w-[25%] h-[65%] shadow-lg flex flex-col"
             onClick={(e) => e.stopPropagation()} // Prevent event bubbling
           >
             <div className="flex justify-between items-center pb-2 mb-4 flex-shrink-0">

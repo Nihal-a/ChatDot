@@ -9,6 +9,7 @@ const INITIAL_STATE = {
     email: null,
     profile: null,
     about: null,
+    notfication_count: null,
   },
   AccessToken: null,
 };

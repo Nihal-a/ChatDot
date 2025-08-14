@@ -1,4 +1,3 @@
-
 import React from "react";
 import "../../Components/Style.css";
 import { Link, useNavigate } from "react-router-dom";
@@ -37,15 +36,18 @@ const ForgotPass = () => {
     try {
       setisOtpSend(null);
       setloading((prev) => ({ ...prev, otpsend: true }));
-      const res = await fetch("http://192.168.18.144:8000/api/otpfor_resetpass", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
+      const res = await fetch(
+        "http://192.168.18.144:8000/api/otpfor_resetpass",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
 
-        body: JSON.stringify(formData),
-      });
+          body: JSON.stringify(formData),
+        }
+      );
       const data = await res.json();
       console.log(data);
 
@@ -74,15 +76,18 @@ const ForgotPass = () => {
     try {
       setisOtpSend(null);
       setloading((prev) => ({ ...prev, otpverfication: true }));
-      const res = await fetch("http://192.168.18.144:8000/api/otp_verification", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
+      const res = await fetch(
+        "http://192.168.18.144:8000/api/otp_verification",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
 
-        body: JSON.stringify(formData),
-      });
+          body: JSON.stringify(formData),
+        }
+      );
       const data = await res.json();
 
       if (res.status == 200) {
@@ -108,14 +113,17 @@ const ForgotPass = () => {
     try {
       setloading((prev) => ({ ...prev, changepass: true }));
 
-      const res = await fetch("http://192.168.18.144:8000/api/change_password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(formData),
-      });
+      const res = await fetch(
+        "http://192.168.18.144:8000/api/change_password",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(formData),
+        }
+      );
 
       const data = await res.json();
       console.log("Response:", data);
@@ -145,19 +153,19 @@ const ForgotPass = () => {
   };
 
   return (
-    <section className="container h-screen w-full flex items-center justify-center">
-      <div className=" w-[65%] h-[72%] ">
-        <div className="h-full w-full grid grid-cols-3 ">
+    <section className=" h-screen w-full flex items-center justify-center">
+      <div className=" md:w-[65%] md:h-[72%] ">
+        <div className="h-full w-full  grid md:grid-cols-3 ">
           <div
-            className="w-full h-full flex flex-col items-center justify-center border-2 bg-amber-200
+            className="hidden w-full h-full md:flex flex-col items-center justify-center border-2 bg-amber-200
             rounded-l-xl  border-amber-200"
           >
             <p>Color fill</p>
           </div>
-          <div className="h-full w-full col-span-2 flex items-center justify-center">
-            <div className="w-full h-full flex flex-col items-center justify-center border-2 rounded-r-xl border-amber-200">
-              <p className=" text-4xl font-bold font-[poppins]">
-                RESET PASSWORD
+          <div className="h-full w-full col-span-2 flex items-center justify-center ">
+            <div className="w-full h-full flex flex-col items-center justify-center border-2 md:rounded-r-xl border-amber-200 p-4">
+              <p className=" md:text-4xl font-bold font-[poppins] text-2xl">
+                RESET PASSWORD 
               </p>
               <p className=" text-sm font-light font-[poppins]">
                 {isUserverified
@@ -186,7 +194,7 @@ const ForgotPass = () => {
                         type={showPassword ? "text" : "password"}
                         minLength={8}
                         placeholder="Enter your password"
-                        className="peer w-[70%] px-2 pl-10 py-[4px] ring-1 ring-gray-200 rounded-md shadow-md  text-md font-[inter] placeholder:transparent focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500 placeholder:text-sm placeholder:text-gray-400 "
+                        className="peer w-[70%] px-2 md:pl-10 pl-7 py-[4px] ring-1 ring-gray-200 rounded-md shadow-md  text-md font-[inter] placeholder:transparent focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500 placeholder:text-sm placeholder:text-gray-400 "
                       />
                       <label htmlFor="password">
                         <i className="bi bi-person-lock absolute top-[3%] left-[16%] text-xl text-black"></i>
@@ -214,7 +222,7 @@ const ForgotPass = () => {
                           }))
                         }
                         placeholder="Confirm your password"
-                        className="peer w-[70%] px-2 pl-10 py-[4px] ring-1 ring-gray-200 rounded-md shadow-md   text-md font-[inter] placeholder:transparent focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500 placeholder:text-sm placeholder:text-gray-400 "
+                        className="peer w-[70%] px-2 md:pl-10 pl-7 py-[4px] ring-1 ring-gray-200 rounded-md shadow-md   text-md font-[inter] placeholder:transparent focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500 placeholder:text-sm placeholder:text-gray-400 "
                       />
                       <label htmlFor="password">
                         <i className="bi bi-person-fill-lock absolute top-[3%] left-[16%] text-xl text-black"></i>
@@ -279,7 +287,7 @@ const ForgotPass = () => {
                     {isUserverified ? (
                       ""
                     ) : (
-                      <button className="absolute top-[2%] right-[15%] w-[20%] py-1 rounded-md ring-1 ring-[#68479D] focus:outline-0 text-white font-bold font-[inter] active:bg-[#7c62a5] bg-[#68479D] ">
+                      <button className="absolute md:top-[7%] right-[15%] md:font-bold text-sm  md:w-[20%] w-[25%] py-1 rounded-md ring-1 ring-[#68479D] focus:outline-0 text-white font-bold font-[inter] active:bg-[#7c62a5] bg-[#68479D] ">
                         {loading.otpsend ? (
                           <>
                             GET OTP
@@ -306,7 +314,7 @@ const ForgotPass = () => {
                       </button>
                     )}
                     {isOtpSend && (
-                      <p className="absolute -bottom-[80%] left-[17%] text-[13px] font-light font-[inter] text-sm text-green-500 ">
+                      <p className="absolute md:-bottom-[80%] -bottom-[95%] left-[17%] md:text-[13px] text-[10px] font-light font-[inter] text-sm text-green-500 ">
                         {isOtpSend}
                       </p>
                     )}

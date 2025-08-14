@@ -5,15 +5,14 @@ from channels.exceptions import DenyConnection
 from rest_framework_simplejwt.tokens import AccessToken
 from channels.db import sync_to_async
 from .mongodb import *
-from datetime import datetime
+from datetime import datetime,timedelta
 from bson import ObjectId 
 from django.db.models import Q
 from mongoengine.queryset.visitor import Q
+from django.utils.timezone import localtime
 
 User = get_user_model()
 
-# Global dictionary to track active chat sessions
-# Format: {username: {room_name: channel_name}}
 ACTIVE_CHAT_SESSIONS = {}
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -39,14 +38,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.user_group_name = f"user_{self.user.username}"
         await self.channel_layer.group_add(self.user_group_name, self.channel_name)
         
-        # Track active chat session
         if self.user.username not in ACTIVE_CHAT_SESSIONS:
             ACTIVE_CHAT_SESSIONS[self.user.username] = {}
         ACTIVE_CHAT_SESSIONS[self.user.username][self.room_name] = self.channel_name
         
         await self.accept()
         
-        # When user connects, mark all unread messages from other user as seen
         participants = self.room_name.split('_')
         other_user = None
         for participant in participants:
@@ -55,13 +52,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 break
         
         if other_user:
-            # Check if connection exists and user is not blocked
             connection_exists = await self.check_connection_and_block_status(self.user.username, other_user)
             if not connection_exists['exists'] or connection_exists['is_blocked']:
                 print(f"Connection blocked or doesn't exist between {self.user.username} and {other_user}")
                 return
                 
-            # Mark messages from other user to current user as seen
             updated_count = await sync_to_async(ChatMessage.objects.filter(
                 sender=other_user,
                 receiver=self.user.username,
@@ -70,7 +65,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             print(f"🔥 On connect: Marked {updated_count} messages as seen from {other_user} to {self.user.username}")
             
-            # Broadcast seen status if there were unread messages
             if updated_count > 0:
                 await self.channel_layer.group_send(
                     self.room_group_name,
@@ -82,7 +76,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 )
 
     async def disconnect(self, close_code):
-        # Remove from active sessions
         if hasattr(self, 'user') and self.user.username in ACTIVE_CHAT_SESSIONS:
             if hasattr(self, 'room_name') and self.room_name in ACTIVE_CHAT_SESSIONS[self.user.username]:
                 del ACTIVE_CHAT_SESSIONS[self.user.username][self.room_name]
@@ -98,7 +91,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def check_connection_and_block_status(self, user1, user2):
         """Check if connection exists and block status"""
         try:
-            # Ensure consistent ordering
             ordered_user1 = min(user1, user2)
             ordered_user2 = max(user1, user2)
             
@@ -234,7 +226,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         to = data.get("to")
         user = data.get("user")
         
-        # Check if connection exists
         connection_status = await self.check_connection_and_block_status(user, to)
         if not connection_status['exists']:
             print(f"No connection exists between {user} and {to}")
@@ -309,7 +300,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         receiver = data.get("receiver")  
         
         if sender and receiver:
-            # Check connection and block status
             connection_status = await self.check_connection_and_block_status(sender, receiver)
             if not connection_status['exists'] or connection_status['is_blocked']:
                 print(f"Cannot mark as seen - connection blocked or doesn't exist")
@@ -337,8 +327,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         message = data['message']
         receiver = data['rec']
         current_time = datetime.now()
-        
-        # Check connection and block status before sending message
+
         connection_status = await self.check_connection_and_block_status(self.user.username, receiver)
         
         if not connection_status['exists']:
@@ -350,7 +339,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
             
         if connection_status['is_blocked']:
-            # Check who blocked whom
             if self.user.username in connection_status['blocked_by']:
                 print(f"{self.user.username} has blocked {receiver}, cannot send message")
                 await self.send(text_data=json.dumps({
@@ -366,37 +354,31 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }))
                 return
 
-        # Ensure consistent ordering for connection update
         user1 = min(self.user.username, receiver)
         user2 = max(self.user.username, receiver)
 
-        # Update connection with last message
         connection = connection_status['connection']
         if connection:
             connection.last_message = message
             connection.last_message_time = current_time
             await sync_to_async(connection.save)()
 
-        # Save message to database
         chat_message = ChatMessage(
             sender=self.user.username,
             receiver=receiver,
             message=message,
-            datetime=current_time,
+            timestamp=current_time,
             seen=False
         )
         await sync_to_async(chat_message.save)()
 
-        # Check if receiver is actively in this chat room
         receiver_room_name = self.room_name
         is_receiver_active = self.is_user_in_active_chat(receiver, receiver_room_name)
-        
-        # If receiver is active in this chat, mark message as seen immediately
+
         if is_receiver_active:
             await sync_to_async(chat_message.update)(seen=True)
             print(f"📱 Receiver {receiver} is active in chat, marking message as seen")
 
-        # Send sidebar updates
         await self.send_sidebar_update(
             receiver_username=receiver,
             sender_username=self.user.username,
@@ -405,7 +387,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             is_receiver_active=is_receiver_active
         )
 
-        # Broadcast message to room
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -422,20 +403,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def send_sidebar_update(self, receiver_username, sender_username, message, timestamp, is_receiver_active=False):
         """Send sidebar updates with proper unseen count logic"""
         
-        # Count unseen messages from sender to receiver
         unseen_count = await sync_to_async(ChatMessage.objects.filter(
             sender=sender_username,
             receiver=receiver_username,
             seen=False
         ).count)()
         
-        # If receiver is actively in the chat, unseen count should be 0
         if is_receiver_active:
             unseen_count = 0
         
         print(f"📊 Sidebar update - Receiver: {receiver_username}, Unseen: {unseen_count}, Active: {is_receiver_active}")
 
-        # Send to sender (person who sent the message) - always 0 unseen count
+
+        today = datetime.now().strftime("%d %B %Y")
+        formatted_date = timestamp.strftime("%d %B %Y")
+        yesterday = (datetime.now()-timedelta(days=1)).strftime("%d %B %Y")
+
+        if today==formatted_date :
+            date_key = timestamp.isoformat()
+        elif yesterday==formatted_date:
+            date_key = "Yesterday" 
+        else:
+            date_key = timestamp.isoformat()
+
         await self.channel_layer.group_send(
             f"user_{sender_username}",
             {
@@ -443,13 +433,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "data": {
                     "username": receiver_username,
                     "last_msg": message,
-                    "last_msg_time": timestamp.isoformat(),
+                    "last_msg_time": date_key,
                     "unseen_count": 0  
                 }
             }
         )
         
-        # Send to receiver with proper unseen count
         await self.channel_layer.group_send(
             f"user_{receiver_username}",
             {
@@ -463,7 +452,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         )
 
-    # Message broadcast handlers
     async def chat_message(self, event):
         """Handle regular chat messages"""
         await self.send(text_data=json.dumps({

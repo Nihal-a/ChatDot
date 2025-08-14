@@ -59,6 +59,7 @@ const Signin = () => {
             email: data.user.email,
             profile: data.user.profile,
             about: data.user.about,
+            notification_count: data.user.notfication_count,
           })
         );
         // Navigation will be handled by useEffect
@@ -77,21 +78,21 @@ const Signin = () => {
   };
 
   return (
-    <section className="container h-screen w-full flex items-center justify-center">
-      <div className=" w-[65%] h-[72%] ">
-        <div className="h-full w-full grid grid-cols-3 ">
+    <section className=" h-screen  flex items-center justify-center">
+      <div className=" md:w-[65%] md:h-[72%]  ">
+        <div className="h-full w-full grid md:grid-cols-3 p-">
           <div
-            className="w-full h-full flex flex-col items-center justify-center border-2 bg-amber-200
-           rounded-l-xl  border-amber-200"
+            className="hidden  w-full h-full md:flex flex-col items-center justify-center border-2 bg-amber-200
+           md:rounded-l-xl  border-amber-200 "
           >
             <p>Color fill</p>
           </div>
-          <div className="h-full w-full col-span-2 flex items-center justify-center">
-            <div className="w-full h-full flex flex-col items-center justify-center border-2 rounded-r-xl border-amber-200">
-              <p className=" text-4xl font-bold font-[poppins]">
+          <div className="h-full w-full md:col-span-2 flex items-center justify-center">
+            <div className="w-full h-full p-5 flex flex-col items-center justify-center border-2 md:rounded-r-xl border-amber-200">
+              <p className=" md:text-4xl text-2xl font-bold font-[poppins] ">
                 Welcome back!
               </p>
-              <p className=" text-sm font-light font-[poppins]">
+              <p className=" text-sm font-light font-[poppins] text-center">
                 Please enter your credentials to continue
               </p>
               <form
@@ -111,14 +112,14 @@ const Signin = () => {
                       }))
                     }
                     placeholder="Enter your username or email"
-                    className=" w-[70%] px-2 pl-10 py-[4px] ring-1 ring-gray-200 rounded-md shadow-md  text-md font-[inter] placeholder:transparent  focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500  placeholder:text-sm placeholder:text-gray-400 "
+                    className="md:placeholder:text-md placeholder:text-xs w-[70%] px-2 pl-10 py-[4px] ring-1 ring-gray-200 rounded-md shadow-md  text-md font-[inter] placeholder:transparent  focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500   placeholder:text-gray-400 "
                     disabled={loading}
                   />
                   <label htmlFor="username">
                     <i className="bi bi-person absolute top-[3%] left-[16%] text-2xl text-black"></i>
                   </label>
                 </div>
-                <div className="w-full relative flex flex-col items-center justify-center mt-10">
+                <div className="w-full relative flex flex-col items-center justify-center md:mt-10 mt-7">
                   <input
                     type={showPassword ? "text" : "password"}
                     value={formData.password}
@@ -131,7 +132,7 @@ const Signin = () => {
                     }}
                     minLength={8}
                     placeholder="Enter your password"
-                    className="peer w-[70%] px-2 pl-10 py-[4px] ring-1 ring-gray-200 rounded-md shadow-md   text-md font-[inter] placeholder:transparent focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500 placeholder:text-sm placeholder:text-gray-400 "
+                    className="peer w-[70%] px-2 pl-10 py-[4px] md:placeholder:text-md placeholder:text-xs ring-1 ring-gray-200 rounded-md shadow-md   text-md font-[inter] placeholder:transparent focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500   placeholder:text-gray-400 "
                     disabled={loading}
                   />
                   <label htmlFor="password">
@@ -191,7 +192,7 @@ const Signin = () => {
                   )}
                 </button>
               </form>
-              <p className="w-full text-sm font-[poppins] font-medium pt-10 text-end pr-10 ">
+              <p className="w-full md:text-sm text-xs font-[poppins] md:font-medium pt-10 md:text-end md:pr-10 text-center ">
                 Don't have an account?
                 <Link to="/signup">
                   <span className="text-[#68479D] hover:underline cursor-pointer ">

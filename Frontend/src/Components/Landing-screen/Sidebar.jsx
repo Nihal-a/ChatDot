@@ -216,7 +216,7 @@ const Sidebar = forwardRef(
 
     const handleUnfriend = (chatuser) => {
       setshowUnfriendModal(true);
-      setunFriendUser(chatuser)
+      setunFriendUser(chatuser);
     };
     return (
       <>
@@ -230,19 +230,19 @@ const Sidebar = forwardRef(
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search or start new chat"
-              className="w-full py-2 pl-10 pr-4 text-sm rounded-md ring-1 ring-gray-300 focus:ring-0 focus:outline-none"
+              className="w-full py-2 md:pl-10 pl-2 pr-4 text-sm rounded-md ring-1 ring-gray-300 focus:ring-0 focus:outline-none"
             />
-            <i className="bi bi-search absolute left-3 top-2.5 text-gray-500 text-md"></i>
+            <i className="bi bi-search hidden md:block absolute left-3 top-2.5 text-gray-500 text-md"></i>
           </div>
         </div>
         <div
-          className="flex-grow overflow-y-auto scrollbar-hide px-4 pb-4"
+          className="flex-grow overflow-y-auto scrollbar-hide px-4 pb-4 overflow-hidden"
           style={{ scrollbarWidth: "none" }}
         >
           {filteredUsers.map((chatuser) => (
             <div
               id={`user-${chatuser.id}`}
-              className={`relative flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md cursor-pointer  ${
+              className={`relative flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md cursor-pointer  w-full  ${
                 isSelected === chatuser.name ? "bg-gray-100" : ""
               }`}
               key={chatuser.id}
@@ -251,7 +251,7 @@ const Sidebar = forwardRef(
                 handleOptionMenu(e, chatuser);
               }}
             >
-              <div className="w-[60px] h-[50px] flex items-center justify-center bg-amber-100 text-xl font-bold rounded-full overflow-hidden">
+              <div className="hidden  min-w-[40px] h-[40px] md:flex md:items-center md:justify-center bg-amber-100 text-xl font-bold rounded-full overflow-hidden">
                 {!imageError && chatuser?.profile ? (
                   <img
                     src={`http://192.168.18.144:8000${chatuser.profile}`}
@@ -264,21 +264,25 @@ const Sidebar = forwardRef(
                 )}
               </div>
               <div className="flex justify-between items-center w-full">
-                <div className="flex flex-col">
+                <div className="flex flex-col w-[80%]">
                   <p className="font-medium pb-1">{chatuser.username}</p>
-                  <p className="text-xs text-gray-500 truncate max-w-[150px]">
-                    {chatuser.last_message || "No messages yet"}
-                  </p>
+                  <div className="flex justify-between items-center">
+                    {" "}
+                    <p className="text-xs text-gray-500 truncate max-w-[50px] ">
+                      {chatuser.last_message || "No messages yet"}
+                    </p>
+                   
+                  </div>
                 </div>
-                <div className="flex flex-col gap-1.5 items-end">
-                  <p className="text-xs text-gray-400">
-                    {chatuser.formattedTime}
-                  </p>
+                <div className="flex flex-col items-center gap-1.5  w-[20%]">
                   {chatuser.unseen_count > 0 && (
                     <span className="text-xs font-semibold text-white bg-blue-500 rounded-full w-5 h-5 flex items-center justify-center">
                       {chatuser.unseen_count}
                     </span>
                   )}
+                  <p className="md:text-[8px] hidden md:block text-gray-400">
+                    {chatuser.formattedTime}
+                  </p>
                 </div>
               </div>
 

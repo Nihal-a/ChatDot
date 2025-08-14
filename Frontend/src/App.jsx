@@ -98,7 +98,8 @@ function App() {
 
       const userData = await userRes.json();
       if (userRes.ok) {
-        const { id, username, name, email, profile, about } = userData.user;
+        const { id, username, name, email, profile, about, notfication_count } =
+          userData.user;
         dispatch(
           login({
             isLoggedIn: true,
@@ -107,9 +108,11 @@ function App() {
             name,
             email,
             about,
+            notfication_count,
             profile: profile,
           })
         );
+        console.log(notfication_count);
       } else {
         handleLogout();
       }

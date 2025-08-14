@@ -174,8 +174,8 @@ const Home = () => {
   console.log("📋 Current latestMsg state:", latestMsg);
   
   return (
-    <div className="w-full h-screen flex overflow-hidden font-[inter]">
-      <div className="w-1/4 h-full flex flex-col border-r border-gray-200">
+    <div className="w-full h-screen flex  overflow-hidden font-[inter]">
+      <div className="md:w-1/4 w-2/6 h-full flex flex-col border-r border-gray-200">
         <Sidebar
           ref={sidebarRef}
           onBlock={handleBlock}
