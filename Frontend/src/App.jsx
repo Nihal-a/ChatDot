@@ -21,8 +21,6 @@ function App() {
   const { isLoggedIn } = useSelector((state) => state.chatdot.user);
   const access = cookies.get("access");
 
-  console.log("Current login status:", isLoggedIn);
-
   useEffect(() => {
     const refreshSession = async () => {
       // If no access token exists, skip session refresh
@@ -112,7 +110,6 @@ function App() {
             profile: profile,
           })
         );
-        console.log(notfication_count);
       } else {
         handleLogout();
       }

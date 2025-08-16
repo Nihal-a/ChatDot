@@ -98,13 +98,11 @@ const Sidebar = forwardRef(
           }
         });
 
-        console.log(updatedList, "updates");
         return updatedList;
       });
     }, [latestMsg]);
 
     const fetchUsers = async () => {
-      console.log("okok");
       try {
         const res = await fetchWithAuth(
           "http://192.168.18.144:8000/api/get_users",
@@ -117,7 +115,6 @@ const Sidebar = forwardRef(
           }
         );
         const data = await res.json();
-        console.log(data.connections, "await resul");
 
         if (res.status === 200) {
           const filteredUsers = data.connections.filter(

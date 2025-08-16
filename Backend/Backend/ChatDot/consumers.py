@@ -422,7 +422,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if today==formatted_date :
             date_key = timestamp.isoformat()
         elif yesterday==formatted_date:
-            date_key = "Yesterday" 
+            date_key = "Yesterday"
         else:
             date_key = timestamp.isoformat()
 

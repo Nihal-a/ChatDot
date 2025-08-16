@@ -39,9 +39,9 @@ const Home = () => {
       `ws://192.168.18.144:8000/ws/chat/${user.username}/?token=${access}`
     );
 
-    socket.onopen = () => {
-      console.log("Home WebSocket connected!");
-    };
+    // socket.onopen = () => {
+    //   console.log("Home WebSocket connected!");
+    // };
 
     socket.onmessage = (event) => {
       try {
@@ -59,13 +59,13 @@ const Home = () => {
       }
     };
 
-    socket.onclose = () => {
-      console.log("Home WebSocket disconnected");
-    };
+    // socket.onclose = () => {
+    //   console.log("Home WebSocket disconnected");
+    // };
 
-    socket.onerror = (error) => {
-      console.error("Home WebSocket error:", error);
-    };
+    // socket.onerror = (error) => {
+    //   console.error("Sidebar WebSocket error:", error);
+    // };
 
     sidebarSocketRef.current = socket;
 

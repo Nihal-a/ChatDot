@@ -37,7 +37,7 @@ const ChatScreen = forwardRef(
     const [dropdownPosition, setDropdownPosition] = useState("bottom");
     const dropdownRef = useRef(null);
     const msgalterdropdownRef = useRef(null);
-
+    const fileInputRef = useRef(null);
     const [profileUser, setProfileUser] = useState(null);
     const [showProfileView, setshowProfileView] = useState(false);
     const cookies = new Cookies();
@@ -64,7 +64,10 @@ const ChatScreen = forwardRef(
     });
     const [ModalMsg, setModalMsg] = useState(null);
     const [deleteType, setDeleteType] = useState(null);
-
+    const [mainPreviewImage, setmainPreviewImage] = useState(null);
+    const [files, setFiles] = useState([]);
+    const [previews, setPreviews] = useState([]);
+    const [CurrentIndex, setCurrentIndex] = useState(0);
     const scrollToBottom = useCallback(() => {
       setTimeout(() => {
         messageEndRef.current?.scrollIntoView({
@@ -114,10 +117,8 @@ const ChatScreen = forwardRef(
         setmsgalterdropdown(true);
         return;
       }
-      console.log(date);
 
       const now = new Date();
-      console.log(date);
       if (date === "Today") {
         const todayStr = format(now, "dd MMMM yyyy");
 
@@ -284,6 +285,69 @@ const ChatScreen = forwardRef(
       }
     };
 
+    const triggerFileInput = () => {
+      fileInputRef.current.click();
+    };
+
+    // const handleFileChange = (e) => {
+    //   const filesArray = Array.from(e.target.files);
+    //   if (filesArray.length > 0) {
+    //     const firstUrl = URL.createObjectURL(filesArray[0]);
+    //     setmainPreviewImage(firstUrl);
+    //   }
+
+    //   // create URL list only once
+    //   const urlList = filesArray.map((file) => URL.createObjectURL(file));
+
+    //   setuploadImagesUrl((prev) => [...prev, ...urlList]);
+    //   setuploadImages((prev) => [...prev, ...filesArray]); // no need of extra temp_files
+    // };
+ const handleFileChange = (e) => {
+  const selectedFiles = Array.from(e.target.files);
+
+  const newPreviews = selectedFiles.map((file) => ({
+    file: file,
+    url: URL.createObjectURL(file),
+  }));
+
+  setFiles((prev) => {
+    const updated = [...prev, ...selectedFiles];
+    setCurrentIndex(updated.length - 1); // set to last
+    return updated;
+  });
+
+  setPreviews((prev) => [...prev, ...newPreviews]);
+
+  // set main preview to first of selected
+  setmainPreviewImage(URL.createObjectURL(selectedFiles[0]));
+};
+
+
+    const removeImage = () => {
+      if (previews.length === 0) return;
+
+      const removed = previews[CurrentIndex];
+      URL.revokeObjectURL(removed.url);
+
+      const newPreviews = previews.filter((_, i) => i !== CurrentIndex);
+      const newFiles = files.filter((_, i) => i !== CurrentIndex);
+
+      setPreviews(newPreviews);
+      setFiles(newFiles);
+
+      let newIndex = CurrentIndex;
+      if (newIndex >= newPreviews.length) {
+        newIndex = newPreviews.length - 1;
+      }
+      setCurrentIndex(newIndex);
+
+      if (newPreviews.length > 0) {
+        setmainPreviewImage(newPreviews[newIndex].url);
+      } else {
+        setmainPreviewImage(null);
+      }
+    };
+    
     const handleLogout = async () => {
       dispatch(Logout());
       try {
@@ -326,11 +390,8 @@ const ChatScreen = forwardRef(
         const data = JSON.parse(event.data);
         console.log("📨 Received WebSocket data:", data);
 
-        // Handle error messages (e.g., from blocking)
         if (data.type === "error") {
           console.error("❌ WebSocket error:", data.message);
-          // You can show a toast notification or alert here
-          // alert(data.message); // or use your preferred notification method
           return;
         }
 
@@ -570,10 +631,6 @@ const ChatScreen = forwardRef(
             return updatedMessages;
           });
 
-          // Only auto-mark as seen if:
-          // 1. Message is received from the selected user
-          // 2. It's not a ghost message
-          // 3. Current user is not blocked by sender
           if (
             data.sender === selectedUser.username &&
             (data.receiver === user.username || !data.receiver) &&
@@ -792,7 +849,7 @@ const ChatScreen = forwardRef(
               } overflow-hidden cursor-pointer flex items-center justify-center`}
               onClick={() => setIsModalOpen(true)}
             >
-              <i class="absolute  bi bi-person-fill-add text-2xl text-[#68479D]"></i>
+              <i className="absolute  bi bi-person-fill-add text-2xl text-[#68479D]"></i>
             </div>
 
             <div
@@ -860,7 +917,7 @@ const ChatScreen = forwardRef(
             } overflow-hidden cursor-pointer flex items-center justify-center`}
             onClick={() => setIsModalOpen(true)}
           >
-            <i class="absolute  bi bi-person-fill-add text-2xl text-[#68479D]"></i>
+            <i className="absolute  bi bi-person-fill-add text-2xl text-[#68479D]"></i>
           </div>
 
           <div
@@ -919,7 +976,14 @@ const ChatScreen = forwardRef(
                 return !deletedForMe && !is_clearmsg;
               });
 
-              if (visibleMsgs.length === 0) return null;
+              // const textMsgs = visibleMsgs.filter(
+              //   (msg) => msg.format === "text"
+              // );
+
+              const textMsgs = 4;
+
+              if (visibleMsgs.length === 0 || textMsgs.length === 0)
+                return null;
 
               return (
                 <div key={date}>
@@ -932,27 +996,56 @@ const ChatScreen = forwardRef(
                     const deletedGlobally = msg.is_bothdeleted;
                     const deletedGlobally_by = msg.is_bothdeleted_by;
                     const edited = msg.is_edited;
+                    // const format = msg.format;
+                    const format = "text";
 
                     return (
+                      // <>
+                      //   {format == "text" && (
                       <div
                         id={`msg-${msg.id}`}
                         key={`${msg.id}-${index}`}
                         className={`relative w-fit md:min-w-[12%] min-w-[25%] md:max-w-[70%] max-w-[80%] wrap-break-word px-2 py-1 pb-3.5 rounded-lg mb-1 ${
-                          isMe
-                            ? "bg-[#68479D] text-white self-end ml-auto group"
-                            : "bg-white self-start group"
+                          format == "text"
+                            ? isMe
+                              ? "bg-[#68479D] text-white self-end ml-auto group"
+                              : "bg-white self-start group"
+                            : ""
                         }`}
                       >
-                        {/* Message text */}
-                        <p className="whitespace-pre-wrap md:text-sm text-[16px] ">
-                          {deletedGlobally
-                            ? deletedGlobally_by === user.username
-                              ? "You deleted this message"
-                              : "This message was deleted"
-                            : msg.message}
-                        </p>
+                        {format == "text" && (
+                          <>
+                            {" "}
+                            <p className="whitespace-pre-wrap md:text-sm text-[16px] ">
+                              {deletedGlobally
+                                ? deletedGlobally_by === user.username
+                                  ? "You deleted this message"
+                                  : "This message was deleted"
+                                : msg.message}
+                            </p>
+                            <p
+                              className={`absolute ${
+                                isMe ? "right-5" : "right-2.5"
+                              } bottom-0.5 md:text-[9px] text-[8px] text-gray-300`}
+                            >
+                              {msg.time}
+                            </p>
+                            <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
+                              {isMe &&
+                                (msg.seen ? (
+                                  <i className="bi bi-check2-all text-blue-400"></i>
+                                ) : (
+                                  <i className="bi bi-check2"></i>
+                                ))}
+                            </p>
+                            {edited && (
+                              <p className="absolute right-16 bottom-0.5 text-[9px] text-gray-300">
+                                <i className="bi bi-pencil"></i>
+                              </p>
+                            )}
+                          </>
+                        )}
 
-                        {/* Options Dropdown (Sender & Receiver) */}
                         {!deletedGlobally && (
                           <div
                             className={`absolute top-0 ${
@@ -1022,29 +1115,9 @@ const ChatScreen = forwardRef(
                               )}
                           </div>
                         )}
-
-                        {/* Time & Seen */}
-                        <p
-                          className={`absolute ${
-                            isMe ? "right-5" : "right-2.5"
-                          } bottom-0.5 md:text-[9px] text-[8px] text-gray-300`}
-                        >
-                          {msg.time}
-                        </p>
-                        <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
-                          {isMe &&
-                            (msg.seen ? (
-                              <i className="bi bi-check2-all text-blue-400"></i>
-                            ) : (
-                              <i className="bi bi-check2"></i>
-                            ))}
-                        </p>
-                        {edited && (
-                          <p className="absolute right-16 bottom-0.5 text-[9px] text-gray-300">
-                            <i className="bi bi-pencil"></i>
-                          </p>
-                        )}
                       </div>
+                      //   )}
+                      // </>
                     );
                   })}
                 </div>
@@ -1071,8 +1144,78 @@ const ChatScreen = forwardRef(
             </button>
           </div>
         ) : (
-          <div className="h-[8%] flex items-center justify-between px-4 py-3 bg-white border-t rounded-t-xl border-gray-200 max-h-32">
-            <i class="bi bi-plus"></i>
+          <div className="relative h-[8%] flex items-center justify-between px-4 py-3 bg-white border-t rounded-t-xl border-gray-200 max-h-32">
+            <i
+              className="bi bi-plus text-2xl"
+              onClick={() => triggerFileInput()}
+            ></i>
+
+            {previews.length > 0 &&
+              previews.map((file, index) => (
+                <div
+                  key={file.url}
+                  className="absolute bottom-3.5 left-2 h-[550px] w-[600px] bg-[#e9e9e9] flex flex-col mt-4 shadow-lg z-20 rounded-md"
+                >
+                  <div className="w-full h-[8%] px-1  flex items-center justify-between border-b border-gray-300 shadow-sm">
+                    <div></div>
+                    <i
+                      className="bi bi-trash p-1.5 bg-white rounded-sm "
+                      onClick={() => removeImage()}
+                    ></i>
+                    <i
+                      className="bi bi-x text-2xl bg-white rounded-sm font-medium"
+                      onClick={() => {
+                        setPreviews([]);
+                      }}
+                    ></i>
+                  </div>
+                  <div className="w-full h-[82%] py-1">
+                    <img
+                      src={mainPreviewImage}
+                      alt=""
+                      className="w-full h-full object-scale-down object-center"
+                    />
+                  </div>
+                  <div className="w-full h-[10%] px-1 flex items-center justify-between border-t border-gray-300 shadow-sm">
+                    <i
+                      className="bi bi-plus text-2xl"
+                      onClick={() => triggerFileInput()}
+                    ></i>
+                    <div className="w-[90%] h-full flex items-center justify-center py-1 ">
+                      {previews.length > 1 &&
+                        previews.map((file, index) => (
+                          <div
+                            key={file.url}
+                            className="max-w-[45px] h-full mr-1"
+                            onClick={() => {
+                              setmainPreviewImage(file.url);
+                              setCurrentIndex(index);
+                            }}
+                          >
+                            <img
+                              src={file.url}
+                              alt=""
+                              className="w-full h-full object-cover object-center"
+                            />
+                          </div>
+                        ))}
+                    </div>
+                    <button onClick={isEditingMsg.edit ? editMsg : sendMessage}>
+                      <VscSend className="text-xl text-[#68479D]" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+            <input
+              type="file"
+              accept="image/*"
+              multiple={true}
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
             <textarea
               ref={textareaRef}
               value={input}
@@ -1081,9 +1224,10 @@ const ChatScreen = forwardRef(
                 handletextareaInput();
               }}
               onKeyDown={handleKeyDown}
-              className="w-[97%] py-2.5 px-4 text-sm rounded-xl focus:ring-0 focus:outline-none bg-gray-100 resize-none overflow-y-auto max-h-32"
+              className="w-[95%] py-2.5 px-4 text-sm rounded-xl focus:ring-0 focus:outline-none bg-gray-100 resize-none overflow-y-auto max-h-32"
               rows={1}
             />
+
             <button onClick={isEditingMsg.edit ? editMsg : sendMessage}>
               <VscSend className="text-xl text-[#68479D]" />
             </button>
