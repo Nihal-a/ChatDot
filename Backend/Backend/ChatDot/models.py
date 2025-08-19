@@ -73,3 +73,4 @@ class FriendRequests(models.Model):
     requested_to = models.TextField(blank=True,null=True)
     requested_date = models.DateTimeField(auto_now_add=True,blank=True,null=True)
     is_accepted = models.BooleanField(default=False)
+

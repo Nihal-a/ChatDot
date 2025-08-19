@@ -24,6 +24,8 @@ from django.db.models import Q
 from mongoengine.queryset.visitor import Q  as MongoQ
 from django.http import JsonResponse
 import re
+from django.conf import settings
+import base64
 
 @csrf_exempt
 @api_view(['POST'])
@@ -292,105 +294,106 @@ def get_messages(request):
     if not sender or not receiver:
         return Response({'detail': 'Sender and receiver are required'}, status=status.HTTP_400_BAD_REQUEST)
     
-    last_msg = ChatMessage.objects(
-        MongoQ(sender=sender, receiver=receiver) | MongoQ(sender=receiver, receiver=sender),
-        is_bothdeleted=False  
-        # & ~Q(deleted_by=sender)  
-    ).order_by('-timestamp').first()
+    try:
+        # Get the last message for connection update
+        last_msg = ChatMessage.objects(
+            MongoQ(sender=sender, receiver=receiver) | MongoQ(sender=receiver, receiver=sender),
+            is_bothdeleted=False  
+        ).order_by('-timestamp').first()
+
+        # Update connection with last message info
+        # if last_msg:
+        #     if last_msg.format == "image":
+        #         last_msg_text = "📷 photo"
+        #     Connections.objects(
+        #         MongoQ(me=sender, my_friend=receiver) | MongoQ(me=receiver, my_friend=sender)
+        #     ).update_one(
+        #         set__last_message=last_msg_text,
+        #         set__last_message_time=last_msg.timestamp
+        #     )
+        # else:
+        #     Connections.objects(
+        #         MongoQ(me=sender, my_friend=receiver) | MongoQ(me=receiver, my_friend=sender)
+        #     ).update_one(
+        #         set__last_message=None,
+        #         set__last_message_time=None
+        #     )
+
+        # Mark messages as seen
+        ChatMessage.objects.filter(
+            __raw__={
+                "$or": [
+                    {"sender": receiver, "receiver": sender}
+                ],
+                "seen": False
+            }
+        ).update(seen=True)
+
+        # Fetch all messages
+        messages = ChatMessage.objects.filter(
+            __raw__={
+                "$or": [
+                    {"sender": sender, "receiver": receiver},
+                    {"sender": receiver, "receiver": sender}
+                ]
+            }
+        ).order_by('timestamp')
+
+        grouped = defaultdict(list)
+
+        for msg in messages:
+            dt = msg.timestamp
+            if is_naive(dt):
+                dt = make_aware(dt)
+            
+            today = datetime.now().strftime("%d %B %Y")
+            yesterday = (datetime.now()-timedelta(days=1)).strftime("%d %B %Y")
+
+            local_dt = localtime(dt)
+            date_key = local_dt.strftime("%d %B %Y")
 
 
-    if last_msg:
-        Connections.objects(
-            MongoQ(me=sender, my_friend=receiver) | MongoQ(me=receiver, my_friend=sender)
-        ).update_one(
-            set__last_message=last_msg.message,
-            set__last_message_time=last_msg.timestamp
-        )
-    else:
-        Connections.objects(
-            MongoQ(me=sender, my_friend=receiver) | MongoQ(me=receiver, my_friend=sender)
-        ).update_one(
-            set__last_message=None,
-            set__last_message_time=None
-        )
+            if msg.format == "image":
+                try:
+                    binary_data = msg.images.read()
+                    base64_str = base64.b64encode(binary_data).decode()
+                    image_data_to_send = f"data:image/jpeg;base64,{base64_str}"
+                except Exception as e:
+                    image_data_to_send = None
+            else:
+                image_data_to_send = None
+            
+            print(msg.images)
 
-    ChatMessage.objects.filter(
-        __raw__={
-            "$or": [
-                {"sender": receiver, "receiver": sender}
-            ],
-            "seen": False
-        }
-    ).update(seen=True)
+            message_data = {
+                'id': str(msg.id),
+                'is_deleted': msg.is_deleted,
+                'is_edited': msg.is_edited,
+                'sender': msg.sender,
+                'receiver': msg.receiver,
+                'message': msg.message or "",
+                'format': msg.format,
+                'images': image_data_to_send,
+                'datetime': local_dt.strftime("%H:%M:%S"),
+                'seen': msg.seen,
+                'is_deleted_by': msg.is_deleted_by,
+                'is_bothdeleted': msg.is_bothdeleted,
+                'is_bothdeleted_by': msg.is_bothdeleted_by,
+                'is_cleared_by': msg.is_cleared_by,
+            }
+            
+            if date_key == today:   
+                grouped["Today"].append(message_data)
+            elif date_key == yesterday:
+                grouped["Yesterday"].append(message_data)
+            else:
+                grouped[date_key].append(message_data)
 
-    messages = ChatMessage.objects.filter(
-        __raw__={
-            "$or": [
-                {"sender": sender, "receiver": receiver},
-                {"sender": receiver, "receiver": sender}
-            ]
-        }
-    ).order_by('timestamp')
-
-    grouped = defaultdict(list)
-
-    for msg in messages:
-        dt = msg.timestamp
-        if is_naive(dt):
-            dt = make_aware(dt)
+        return Response(grouped, status=status.HTTP_200_OK)
         
-        today = datetime.now().strftime("%d %B %Y")
-        yesterday = (datetime.now()-timedelta(days=1)).strftime("%d %B %Y")
-
-        local_dt = localtime(dt)
-        date_key = local_dt.strftime("%d %B %Y")
-        if date_key==today:   
-            grouped["Today"].append({
-                'id': str(msg.id),
-                'is_deleted':msg.is_deleted,
-                'is_edited':msg.is_edited,
-                'sender': msg.sender,
-                'receiver': msg.receiver,
-                'message': msg.message,
-                'datetime': local_dt.strftime("%H:%M:%S"),
-                'seen': msg.seen,
-                'is_deleted_by': msg.is_deleted_by,
-                'is_bothdeleted': msg.is_bothdeleted,
-                'is_bothdeleted_by': msg.is_bothdeleted_by,
-                'is_cleared_by': msg.is_cleared_by,
-            })
-        elif date_key==yesterday:
-            grouped["Yesterday"].append({
-                'id': str(msg.id),
-                'is_deleted':msg.is_deleted,
-                'is_edited':msg.is_edited,
-                'sender': msg.sender,
-                'receiver': msg.receiver,
-                'message': msg.message,
-                'datetime': local_dt.strftime("%H:%M:%S"),
-                'seen': msg.seen,
-                'is_deleted_by': msg.is_deleted_by,
-                'is_bothdeleted': msg.is_bothdeleted,
-                'is_bothdeleted_by': msg.is_bothdeleted_by,
-                'is_cleared_by': msg.is_cleared_by,
-            })
-        else:
-            grouped[date_key].append({
-                'id': str(msg.id),
-                'is_deleted':msg.is_deleted,
-                'is_edited':msg.is_edited,
-                'sender': msg.sender,
-                'receiver': msg.receiver,
-                'message': msg.message,
-                'datetime': local_dt.strftime("%H:%M:%S"),
-                'seen': msg.seen,
-                'is_deleted_by': msg.is_deleted_by,
-                'is_bothdeleted': msg.is_bothdeleted,
-                'is_bothdeleted_by': msg.is_bothdeleted_by,
-                'is_cleared_by': msg.is_cleared_by,
-            })
-
-    return Response(grouped, status=status.HTTP_200_OK)
+    except Exception as e:
+        print(f"Error in get_messages: {e}")
+        return Response({'detail': 'Server error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

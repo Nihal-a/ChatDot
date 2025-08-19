@@ -10,6 +10,8 @@ from bson import ObjectId
 from django.db.models import Q
 from mongoengine.queryset.visitor import Q
 from django.utils.timezone import localtime
+import base64
+from django.core.files.base import ContentFile
 
 User = get_user_model()
 
@@ -127,7 +129,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             data = json.loads(text_data)
             msg_type = data.get("type", "message")
-            print(f"Received message type: {msg_type}, data: {data}")
+            # print(f"Received message type: {msg_type}, data: {data}")
 
             if msg_type == "clearchat":
                 await self.handle_clear_chat(data)
@@ -152,6 +154,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 
             elif msg_type == "message":
                 await self.handle_message(data)
+                
+            elif msg_type == "images":
+                await self.handle_images(data)
 
         except Exception as e:
             print("Error in receive():", e)
@@ -367,8 +372,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             sender=self.user.username,
             receiver=receiver,
             message=message,
+            format="text",
             timestamp=current_time,
-            seen=False
+            seen=False,
         )
         await sync_to_async(chat_message.save)()
 
@@ -394,9 +400,94 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'id': str(chat_message.id),
                 'sender': self.user.username,
                 'message': message,
+                'format': 'text',
                 'receiver': receiver,
                 'datetime': current_time.isoformat(),
                 'seen': is_receiver_active  # Include seen status
+            }
+        )
+
+    async def handle_images(self, data):
+        base64_data = data['images']
+        
+        format, imgstr = base64_data.split(';base64,')
+        ext = format.split('/')[-1]
+        image_content = ContentFile(base64.b64decode(imgstr), name=data['filename'])
+        print(image_content)
+        receiver = data['rec']
+        current_time = datetime.now()
+
+        connection_status = await self.check_connection_and_block_status(self.user.username, receiver)
+        
+        if not connection_status['exists']:
+            print(f"No connection exists between {self.user.username} and {receiver}")
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'No connection exists with this user'
+            }))
+            return
+            
+        if connection_status['is_blocked']:
+            if self.user.username in connection_status['blocked_by']:
+                print(f"{self.user.username} has blocked {receiver}, cannot send message")
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': 'You have blocked this user. Unblock to send messages.'
+                }))
+                return
+            elif receiver in connection_status['blocked_by']:
+                print(f"{receiver} has blocked {self.user.username}, cannot send message")
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': 'You cannot send messages to this user.'
+                }))
+                return
+
+        user1 = min(self.user.username, receiver)
+        user2 = max(self.user.username, receiver)
+
+        connection = connection_status['connection']
+        if connection:
+            connection.last_message = "📷 image"
+            connection.last_message_time = current_time
+            await sync_to_async(connection.save)()
+
+        chat_message = ChatMessage(
+            sender=self.user.username,
+            receiver=receiver,
+            images=image_content,    
+            format="image",
+            timestamp=current_time,
+            seen=False
+        )
+        await sync_to_async(chat_message.save)()
+
+        receiver_room_name = self.room_name
+        is_receiver_active = self.is_user_in_active_chat(receiver, receiver_room_name)
+
+        if is_receiver_active:
+            await sync_to_async(chat_message.update)(seen=True)
+            print(f"📱 Receiver {receiver} is active in chat, marking message as seen")
+
+        await self.send_sidebar_update(
+            receiver_username=receiver,
+            sender_username=self.user.username,
+            message="📷 image",
+            timestamp=current_time,
+            is_receiver_active=is_receiver_active
+        )
+
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'chat_images',
+                'id': str(chat_message.id),
+                'sender': self.user.username,
+                'images': base64_data,
+                'receiver': receiver,
+                'datetime': current_time.isoformat(),
+                'seen': is_receiver_active,
+                'format':'image'
             }
         )
 
@@ -461,8 +552,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'receiver': event['receiver'],
             'message': event['message'],
             'datetime': event['datetime'],
+            'format': event['format'],
             'seen': event.get('seen', False)
         }))
+
+
+    async def chat_images(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'image',
+            'id': event['id'],
+            'sender': event['sender'],
+            'receiver': event['receiver'],
+            'format': event['format'],
+            'images': event['images'],
+            'datetime': event['datetime'],
+            'seen': event.get('seen', False),
+            
+        }))
+
 
     async def seen_update(self, event):
         """Handle seen status updates"""

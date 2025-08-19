@@ -4,7 +4,7 @@ import datetime
 class ChatMessage(Document):
     sender = StringField(required=True)
     receiver = StringField(required=True)
-    message = StringField(required=False)
+    message = StringField(required=False,default="")
     timestamp = DateTimeField(default=datetime.datetime.utcnow)
     seen = BooleanField(default=False)  
     is_deleted = BooleanField(default=False)
@@ -17,7 +17,8 @@ class ChatMessage(Document):
     is_cleared_by_time = DateTimeField()
     is_ghost_delivery = BooleanField(default=False)  # New field for WhatsApp-like blocking
     format = StringField(required=True, default="text")
-    image = ImageField(null=True, blank=True, required=False)
+    images = ImageField( default="")
+
 
 class Connections(Document):
     me = StringField(required=True)
@@ -26,3 +27,5 @@ class Connections(Document):
     last_message = StringField(null=True, blank=True, required=False)
     last_message_time = DateTimeField(null=True, blank=True, required=False)
     is_blocked_by = ListField(StringField())
+
+

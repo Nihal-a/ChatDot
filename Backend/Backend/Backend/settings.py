@@ -102,6 +102,9 @@ connect(
     tlsCAFile=certifi.where()
 )
 
+MONGO_URI = f"mongodb+srv://{username}:{password}@chatdotcluster.yvfb65n.mongodb.net/?retryWrites=true&w=majority&appName=ChatDotCluster"
+MONGO_DB_NAME = "chatDotDB"
+
 # ChatMessage.objects(form__exists=False).update(set__form="text")  #to set new field in exsting datas
 # # ChatMessage.objects(is_blocked_by__exists=False).update(set__is_blocked_by=[])
 

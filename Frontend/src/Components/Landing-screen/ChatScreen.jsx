@@ -68,6 +68,7 @@ const ChatScreen = forwardRef(
     const [files, setFiles] = useState([]);
     const [previews, setPreviews] = useState([]);
     const [CurrentIndex, setCurrentIndex] = useState(0);
+
     const scrollToBottom = useCallback(() => {
       setTimeout(() => {
         messageEndRef.current?.scrollIntoView({
@@ -95,6 +96,64 @@ const ChatScreen = forwardRef(
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
+    };
+
+    // const sendImage = () => {
+    //   console.log("🚀 Sending message:", files);
+
+    //   files.forEach((file) => {
+    //     const reader = new FileReader();
+    //     console.log("okok");
+    //     reader.onload = () => {
+    //       const base64data = reader.result;
+
+    //       socket.send(
+    //         JSON.stringify({
+    //           type: "images",
+    //           sender: user.username,
+    //           rec: selectedUser.username,
+    //           filename: file.name,
+    //           images: base64data,
+    //         })
+    //       );
+    //     };
+
+    //     reader.readAsDataURL(file);
+    //   });
+    //   console.log("okokok");
+    //   setPreviews([]);
+    //   setFiles([]);
+    // };
+
+    const sendImage = () => {
+      if (!socketRef) {
+        console.log("Socket not ready!");
+        return;
+      }
+
+      files.forEach((file) => {
+        const reader = new FileReader();
+
+        reader.onload = () => {
+          const base64data = reader.result;
+          console.log("Sending", file.name, "length:", base64data.length);
+
+          socketRef.current.send(
+            JSON.stringify({
+              type: "images",
+              sender: user.username,
+              rec: selectedUser.username,
+              filename: file.name,
+              images: base64data,
+            })
+          );
+        };
+
+        reader.readAsDataURL(file);
+      });
+
+      setPreviews([]);
+      setFiles([]);
     };
 
     const handleMsgOptions = (msgid) => {
@@ -302,26 +361,25 @@ const ChatScreen = forwardRef(
     //   setuploadImagesUrl((prev) => [...prev, ...urlList]);
     //   setuploadImages((prev) => [...prev, ...filesArray]); // no need of extra temp_files
     // };
- const handleFileChange = (e) => {
-  const selectedFiles = Array.from(e.target.files);
+    const handleFileChange = (e) => {
+      const selectedFiles = Array.from(e.target.files);
 
-  const newPreviews = selectedFiles.map((file) => ({
-    file: file,
-    url: URL.createObjectURL(file),
-  }));
+      const newPreviews = selectedFiles.map((file) => ({
+        file: file,
+        url: URL.createObjectURL(file),
+      }));
 
-  setFiles((prev) => {
-    const updated = [...prev, ...selectedFiles];
-    setCurrentIndex(updated.length - 1); // set to last
-    return updated;
-  });
+      setFiles((prev) => {
+        const updated = [...prev, ...selectedFiles];
+        setCurrentIndex(updated.length - 1); // set to last
+        return updated;
+      });
 
-  setPreviews((prev) => [...prev, ...newPreviews]);
+      setPreviews((prev) => [...prev, ...newPreviews]);
 
-  // set main preview to first of selected
-  setmainPreviewImage(URL.createObjectURL(selectedFiles[0]));
-};
-
+      // set main preview to first of selected
+      setmainPreviewImage(URL.createObjectURL(selectedFiles[0]));
+    };
 
     const removeImage = () => {
       if (previews.length === 0) return;
@@ -347,7 +405,7 @@ const ChatScreen = forwardRef(
         setmainPreviewImage(null);
       }
     };
-    
+
     const handleLogout = async () => {
       dispatch(Logout());
       try {
@@ -589,12 +647,109 @@ const ChatScreen = forwardRef(
                 ? selectedUser.username
                 : user.username),
             message: data.message,
+            format: data.format,
             time: formattedTime,
             seen: data.seen || false,
             is_edited: false,
             is_ghost: data.is_ghost || false, // Track if this is a ghost message
           };
 
+          console.log("📨 New message to add:", newMessage);
+
+          setmessages((prevMessages) => {
+            console.log("📚 Previous messages:", prevMessages);
+
+            let groupKey;
+            if (isToday(msgDate)) {
+              groupKey = "Today";
+            } else if (isYesterday(msgDate)) {
+              groupKey = "Yesterday";
+            } else {
+              groupKey = formattedDate;
+            }
+
+            const updatedMessages = { ...prevMessages };
+
+            if (updatedMessages[groupKey]) {
+              const messageExists = updatedMessages[groupKey].some(
+                (msg) => msg.id === newMessage.id
+              );
+
+              if (!messageExists) {
+                updatedMessages[groupKey] = [
+                  ...updatedMessages[groupKey],
+                  newMessage,
+                ];
+              }
+            } else {
+              updatedMessages[groupKey] = [newMessage];
+            }
+
+            console.log("✅ Updated messages:", updatedMessages);
+            setTimeout(() => scrollToBottom(), 0);
+            return updatedMessages;
+          });
+
+          if (
+            data.sender === selectedUser.username &&
+            (data.receiver === user.username || !data.receiver) &&
+            !data.is_ghost &&
+            !selectedUser.is_blocked_by?.includes(data.sender)
+          ) {
+            console.log(
+              "👀 Auto-sending seen notification for message from",
+              data.sender
+            );
+
+            setTimeout(() => {
+              if (
+                socketRef.current &&
+                socketRef.current.readyState === WebSocket.OPEN
+              ) {
+                socketRef.current.send(
+                  JSON.stringify({
+                    type: "seen",
+                    sender: user.username,
+                    receiver: data.sender,
+                  })
+                );
+              }
+            }, 100);
+          }
+        }
+
+        if (data.type === "image" || !data.type) {
+          console.log("📨 Processing new message:", data);
+
+          // Ensure we have all required fields
+          if (!data.datetime || !data.sender || !data.images) {
+            console.error("❌ Invalid message data:", data);
+            return;
+          }
+
+          const msgDate = new Date(data.datetime);
+          const formattedDate = format(msgDate, "dd MMMM yyyy");
+          const formattedTime = format(msgDate, "hh:mm a");
+
+          const newMessage = {
+            id: data.id || Date.now(),
+            is_deleted_by: null,
+            is_bothdeleted: false,
+            is_bothdeleted_by: false,
+            sender: data.sender,
+            receiver:
+              data.receiver ||
+              (data.sender === user.username
+                ? selectedUser.username
+                : user.username),
+            message: "",
+            image: data.images,
+            format: data.format,
+            time: formattedTime,
+            seen: data.seen || false,
+            is_edited: false,
+            is_ghost: data.is_ghost || false,
+          };
           console.log("📨 New message to add:", newMessage);
 
           setmessages((prevMessages) => {
@@ -764,6 +919,8 @@ const ChatScreen = forwardRef(
                   time: formattedTime,
                   seen: Boolean(msg.seen),
                   is_edited: msg.is_edited,
+                  format: msg.format,
+                  image: msg.images,
                 };
               });
             }
@@ -837,6 +994,7 @@ const ChatScreen = forwardRef(
       setProfileUser(null);
     };
 
+
     if (!selectedUser) {
       return (
         <>
@@ -905,7 +1063,6 @@ const ChatScreen = forwardRef(
         </>
       );
     }
-
     return (
       <>
         <div className="h-[8%] flex items-center justify-end px-4 py-2 gap-4 bg-white border-b border-gray-200">
@@ -997,7 +1154,7 @@ const ChatScreen = forwardRef(
                     const deletedGlobally_by = msg.is_bothdeleted_by;
                     const edited = msg.is_edited;
                     // const format = msg.format;
-                    const format = "text";
+                    const format = msg.format;
 
                     return (
                       // <>
@@ -1005,15 +1162,17 @@ const ChatScreen = forwardRef(
                       <div
                         id={`msg-${msg.id}`}
                         key={`${msg.id}-${index}`}
-                        className={`relative w-fit md:min-w-[12%] min-w-[25%] md:max-w-[70%] max-w-[80%] wrap-break-word px-2 py-1 pb-3.5 rounded-lg mb-1 ${
-                          format == "text"
-                            ? isMe
-                              ? "bg-[#68479D] text-white self-end ml-auto group"
-                              : "bg-white self-start group"
-                            : ""
+                        className={`relative w-fit ${
+                          format == "image"
+                            ? "max-w-[200px] max-h-[200px] p-3"
+                            : "md:min-w-[12%] min-w-[25%] md:max-w-[70%] max-w-[80%] wrap-break-word pb-3.5"
+                        } px-2 py-1 rounded-lg mb-1 ${
+                          isMe
+                            ? "bg-[#68479D] text-white self-end ml-auto group"
+                            : "bg-white self-start group"
                         }`}
                       >
-                        {format == "text" && (
+                        {format == "text" ? (
                           <>
                             {" "}
                             <p className="whitespace-pre-wrap md:text-sm text-[16px] ">
@@ -1044,6 +1203,20 @@ const ChatScreen = forwardRef(
                               </p>
                             )}
                           </>
+                        ) : (
+                          // <div className="min-w-full min-h-full overflow-hidden p-3 flex items-center justify-center ">
+                          <>
+                            <img
+                              src={msg.image}
+                              className="w-[150px] h-[150px] object-contain rounded"
+                              alt=""
+                            />
+                            <p className="absolute right-1.5 bottom-1 text-[9px] text-gray-300">
+                              {msg.time}
+                            </p>
+                          </>
+
+                          // </div>
                         )}
 
                         {!deletedGlobally && (
@@ -1177,10 +1350,10 @@ const ChatScreen = forwardRef(
                     />
                   </div>
                   <div className="w-full h-[10%] px-1 flex items-center justify-between border-t border-gray-300 shadow-sm">
-                    <i
+                    {/* <i
                       className="bi bi-plus text-2xl"
                       onClick={() => triggerFileInput()}
-                    ></i>
+                    ></i> */}
                     <div className="w-[90%] h-full flex items-center justify-center py-1 ">
                       {previews.length > 1 &&
                         previews.map((file, index) => (
@@ -1200,7 +1373,7 @@ const ChatScreen = forwardRef(
                           </div>
                         ))}
                     </div>
-                    <button onClick={isEditingMsg.edit ? editMsg : sendMessage}>
+                    <button onClick={sendImage}>
                       <VscSend className="text-xl text-[#68479D]" />
                     </button>
                   </div>
@@ -1210,7 +1383,7 @@ const ChatScreen = forwardRef(
             <input
               type="file"
               accept="image/*"
-              multiple={true}
+              multiple={false}
               ref={fileInputRef}
               onChange={handleFileChange}
               className="hidden"
@@ -1228,7 +1401,10 @@ const ChatScreen = forwardRef(
               rows={1}
             />
 
-            <button onClick={isEditingMsg.edit ? editMsg : sendMessage}>
+            <button
+              onClick={isEditingMsg.edit ? editMsg : sendMessage}
+              hidden={previews.length > 0}
+            >
               <VscSend className="text-xl text-[#68479D]" />
             </button>
           </div>
