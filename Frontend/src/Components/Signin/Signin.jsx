@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from "react";
-import "../../Components/Style.css";
 import { Link, useNavigate } from "react-router-dom";
-import { login } from "../Redux/Slice";
 import { useSelector, useDispatch } from "react-redux";
+import { login } from "../Redux/Slice";
 import Cookies from "universal-cookie";
+import "../../Components/Style.css";
 
 const Signin = () => {
-  const { isLoggedIn } = useSelector((state) => state.chatdot.user);
-  const navigate = useNavigate();
   const [showPassword, setshowPassword] = useState(false);
   const [errors, seterrors] = useState("");
   const [loading, setloading] = useState(false);
@@ -15,15 +13,11 @@ const Signin = () => {
     username: "",
     password: "",
   });
-  const cookie = new Cookies();
-  const dispatch = useDispatch();
 
-  // Fixed: Use useEffect for navigation logic
-  useEffect(() => {
-    if (isLoggedIn) {
-      navigate("/", { replace: true });
-    }
-  }, [isLoggedIn, navigate]);
+  const { isLoggedIn } = useSelector((state) => state.chatdot.user);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const cookie = new Cookies();
 
   const Login = async (e) => {
     e.preventDefault();
@@ -35,7 +29,7 @@ const Signin = () => {
 
     try {
       setloading(true);
-      seterrors(""); // Clear previous errors
+      seterrors("");
 
       const res = await fetch("http://192.168.18.144:8000/api/login", {
         method: "POST",
@@ -62,7 +56,6 @@ const Signin = () => {
             notification_count: data.user.notfication_count,
           })
         );
-        // Navigation will be handled by useEffect
       } else if (res.status === 400 || res.status === 401) {
         seterrors(
           data.detail || "Login failed. Please check your credentials."
@@ -76,6 +69,12 @@ const Signin = () => {
       setloading(false);
     }
   };
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigate("/", { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
 
   return (
     <section className=" h-screen  flex items-center justify-center">

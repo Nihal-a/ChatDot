@@ -4,6 +4,7 @@ import { fetchWithAuth } from "../../../utils";
 
 const Frndrequest = ({ isOpen, onClose, onAccept }) => {
   if (!isOpen) return null;
+
   const [search, setsearch] = useState("");
   const [searchResults, setsearchResults] = useState([]);
   const [friendRequests, setfriendRequests] = useState([]);
@@ -171,6 +172,7 @@ const Frndrequest = ({ isOpen, onClose, onAccept }) => {
         console.error("Error fetching users:", error);
       }
     };
+
     searchuser();
   }, [search]);
 
@@ -287,7 +289,9 @@ const Frndrequest = ({ isOpen, onClose, onAccept }) => {
                   {/* User Info */}
                   <div className="flex flex-col ml-6 flex-grow min-w-0 ">
                     <p className="truncate text-xl font-bold">{user.name}</p>
-                    <p className="hidden md:block truncate text-md">{user.username}</p>
+                    <p className="hidden md:block truncate text-md">
+                      {user.username}
+                    </p>
                   </div>
 
                   {/* Buttons */}

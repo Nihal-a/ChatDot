@@ -7,25 +7,87 @@ import Signup from "./Components/Signup/Signup.jsx";
 import Signin from "./Components/Signin/Signin.jsx";
 import Home from "./Components/Landing-screen/Home.jsx";
 import Cookies from "universal-cookie";
-import Chat from "./Components/Chat.jsx";
-import ChatRoom from "./Components/Chatroom.jsx";
 import PrivateRoute from "./PrivateRoute.jsx";
 import ForgotPass from "./Components/ForgotPass/ForgotPass.jsx";
 
 function App() {
   const [refreshDone, setRefreshDone] = useState(false);
   const [loading, setloading] = useState(true);
+
   const dispatch = useDispatch();
-  const cookies = new Cookies();
   const navigate = useNavigate();
-  const { isLoggedIn } = useSelector((state) => state.chatdot.user);
+  const cookies = new Cookies();
   const access = cookies.get("access");
+
+  const { isLoggedIn } = useSelector((state) => state.chatdot.user);
+
+  const fetchUserAndLogin = async (token) => {
+    try {
+      const userRes = await fetch(
+        "http://192.168.18.144:8000/api/get_userdata",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const userData = await userRes.json();
+      if (userRes.ok) {
+        const { id, username, name, email, profile, about, notfication_count } =
+          userData.user;
+        dispatch(
+          login({
+            isLoggedIn: true,
+            id,
+            username,
+            name,
+            email,
+            about,
+            notfication_count,
+            profile: profile,
+          })
+        );
+      } else {
+        handleLogout();
+      }
+    } catch (err) {
+      console.error("User fetch failed:", err);
+      handleLogout();
+    }
+  };
+
+  const handleLogout = async () => {
+    console.log("Logging out user...");
+    dispatch(Logout());
+    const currentAccess = cookies.get("access");
+
+    try {
+      if (currentAccess) {
+        await fetch("http://192.168.18.144:8000/api/logout", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${currentAccess}`,
+          },
+          credentials: "include",
+        });
+      }
+    } catch (err) {
+      console.error("Logout API failed:", err);
+    }
+
+    cookies.remove("access", { path: "/" });
+    setloading(false);
+    setRefreshDone(true);
+
+    navigate("/signin", { replace: true });
+  };
 
   useEffect(() => {
     const refreshSession = async () => {
-      // If no access token exists, skip session refresh
       if (!access) {
-        console.log("No access token found, skipping refresh");
         setloading(false);
         setRefreshDone(true);
         return;
@@ -79,76 +141,7 @@ function App() {
     };
 
     refreshSession();
-  }, [refreshDone, access]); // Added access as dependency
-
-  const fetchUserAndLogin = async (token) => {
-    try {
-      const userRes = await fetch(
-        "http://192.168.18.144:8000/api/get_userdata",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const userData = await userRes.json();
-      if (userRes.ok) {
-        const { id, username, name, email, profile, about, notfication_count } =
-          userData.user;
-        dispatch(
-          login({
-            isLoggedIn: true,
-            id,
-            username,
-            name,
-            email,
-            about,
-            notfication_count,
-            profile: profile,
-          })
-        );
-      } else {
-        handleLogout();
-      }
-    } catch (err) {
-      console.error("User fetch failed:", err);
-      handleLogout();
-    }
-  };
-
-  const handleLogout = async () => {
-    console.log("Logging out user...");
-
-    // First dispatch logout to clear Redux state
-    dispatch(Logout());
-
-    const currentAccess = cookies.get("access");
-
-    try {
-      if (currentAccess) {
-        await fetch("http://192.168.18.144:8000/api/logout", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${currentAccess}`,
-          },
-          credentials: "include",
-        });
-      }
-    } catch (err) {
-      console.error("Logout API failed:", err);
-    }
-
-    // Remove cookies and clear states
-    cookies.remove("access", { path: "/" });
-    setloading(false);
-    setRefreshDone(true);
-
-    // Navigate to signin
-    navigate("/signin", { replace: true });
-  };
+  }, [refreshDone, access]);
 
   if (loading) {
     return <div>Loading session...</div>;
@@ -165,20 +158,9 @@ function App() {
             </PrivateRoute>
           }
         />
-
         <Route path="/signup" element={<Signup />} />
         <Route path="/signin" element={<Signin />} />
         <Route path="/forgotpass" element={<ForgotPass />} />
-        <Route path="/chat" element={<Chat />} />
-
-        <Route
-          path="/chatroom"
-          element={
-            <PrivateRoute>
-              <ChatRoom />
-            </PrivateRoute>
-          }
-        />
       </Routes>
     </>
   );

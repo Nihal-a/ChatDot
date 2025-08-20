@@ -129,7 +129,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             data = json.loads(text_data)
             msg_type = data.get("type", "message")
-            # print(f"Received message type: {msg_type}, data: {data}")
+            print(f"Received message type: {msg_type}, data: {data}")
 
             if msg_type == "clearchat":
                 await self.handle_clear_chat(data)
@@ -162,6 +162,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             print("Error in receive():", e)
 
     async def handle_clear_chat(self, data):
+        from datetime import datetime, timezone
+
         clear_time_str = data.get("time")
         username = data.get("user")
         friend = data.get("to")
@@ -170,34 +172,46 @@ class ChatConsumer(AsyncWebsocketConsumer):
             print("Missing required fields")
             return
 
+        # Parse the ISO string properly
         try:
             clear_time = datetime.fromisoformat(clear_time_str.replace("Z", "+00:00"))
+            # Convert to UTC and remove timezone info for MongoDB
+            clear_time = clear_time.astimezone(timezone.utc).replace(tzinfo=None)
+            print("Parsed clear_time:", clear_time)
         except Exception as e:
             print("Time parse error:", e)
-            return
-
+            clear_time = datetime.utcnow()  # Fallback to current time
+        
+        # Update messages - mark them as cleared by this user
+        # Remove the user from is_cleared_by first, then add them back
+        # This ensures the clear action works even if previously cleared
         result = ChatMessage.objects(
-            __raw__={
-                "$or": [
-                    {"sender": username, "receiver": friend},
-                    {"sender": friend, "receiver": username},
-                ],
-                "timestamp": {"$lte": clear_time},
-                "is_cleared_by": {"$ne": username}
-            }
+            Q(sender=username, receiver=friend) | Q(sender=friend, receiver=username),
+            timestamp__lte=clear_time
+        ).update(
+            pull__is_cleared_by=username,  # Remove if exists
+            set__is_cleared_by_time=clear_time  # Set clear time
+        )
+        
+        # Then add the user to cleared by list
+        result2 = ChatMessage.objects(
+            Q(sender=username, receiver=friend) | Q(sender=friend, receiver=username),
+            timestamp__lte=clear_time
         ).update(push__is_cleared_by=username)
+        
+        print(f"Step 1 - Removed user from {result} messages")
+        print(f"Step 2 - Added user to {result2} messages")
 
+        print(f"Step 1 - Removed user from {result} messages")
+        print(f"Step 2 - Added user to {result2} messages")
+        print(f"Total cleared messages for {username} before {clear_time}")
+
+        # Update connections - clear last message info
         Connections.objects(
-            __raw__={
-                "$or": [
-                    {"me": username, "my_friend": friend},
-                    {"my_friend": friend, "me": username},
-                ],
-            }
+            Q(me=username, my_friend=friend) | Q(me=friend, my_friend=username)
         ).update(set__last_message=None, set__last_message_time=None)
 
-        print(f"Cleared {result} messages for {username} before {clear_time}")
-
+        # Broadcast the clear chat event
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -206,6 +220,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "user": username,
             }
         )
+
 
     async def handle_delete_me(self, data):
         msg_id = data.get("id")
@@ -403,7 +418,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'format': 'text',
                 'receiver': receiver,
                 'datetime': current_time.isoformat(),
-                'seen': is_receiver_active  # Include seen status
+                'seen': is_receiver_active 
             }
         )
 
@@ -413,7 +428,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         format, imgstr = base64_data.split(';base64,')
         ext = format.split('/')[-1]
         image_content = ContentFile(base64.b64decode(imgstr), name=data['filename'])
-        print(image_content)
         receiver = data['rec']
         current_time = datetime.now()
 

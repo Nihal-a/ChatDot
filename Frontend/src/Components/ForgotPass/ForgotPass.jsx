@@ -1,17 +1,9 @@
-import React from "react";
-import "../../Components/Style.css";
 import { Link, useNavigate } from "react-router-dom";
-import { login } from "../Redux/Slice";
-import { useSelector, useDispatch } from "react-redux";
-import Cookies from "universal-cookie";
 import { useState } from "react";
+import "../../Components/Style.css";
+
 const ForgotPass = () => {
   const [errors, seterrors] = useState();
-  const [loading, setloading] = useState({
-    otpsend: false,
-    otpverfication: false,
-    changepass: false,
-  });
   const [isOtpSend, setisOtpSend] = useState(null);
   const [isUserverified, setisUserverified] = useState(false);
   const [showPassword, setshowPassword] = useState(false);
@@ -24,15 +16,21 @@ const ForgotPass = () => {
     email: "",
     operation: "passwordreset",
   });
-
+  const [loading, setloading] = useState({
+    otpsend: false,
+    otpverfication: false,
+    changepass: false,
+  });
   const navigate = useNavigate();
 
   const handleGetOtp = async (e) => {
     e.preventDefault();
+
     if (formData.username.length < 3) {
       seterrors("Invalid ");
       return;
     }
+
     try {
       setisOtpSend(null);
       setloading((prev) => ({ ...prev, otpsend: true }));
@@ -69,10 +67,12 @@ const ForgotPass = () => {
 
   const otpverification = async (e) => {
     e.preventDefault();
+
     if (formData.otp.length < 4) {
       seterrors("Please Enter minimum 4 digit");
       return;
     }
+
     try {
       setisOtpSend(null);
       setloading((prev) => ({ ...prev, otpverfication: true }));
@@ -88,6 +88,7 @@ const ForgotPass = () => {
           body: JSON.stringify(formData),
         }
       );
+
       const data = await res.json();
 
       if (res.status == 200) {
@@ -103,6 +104,7 @@ const ForgotPass = () => {
       setloading((prev) => ({ ...prev, otpverfication: false }));
     }
   };
+
   const handlechangepassword = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmpass) {
@@ -126,7 +128,6 @@ const ForgotPass = () => {
       );
 
       const data = await res.json();
-      console.log("Response:", data);
 
       if (res.status === 200) {
         setisUserverified(false);
@@ -165,7 +166,7 @@ const ForgotPass = () => {
           <div className="h-full w-full col-span-2 flex items-center justify-center ">
             <div className="w-full h-full flex flex-col items-center justify-center border-2 md:rounded-r-xl border-amber-200 p-4">
               <p className=" md:text-4xl font-bold font-[poppins] text-2xl">
-                RESET PASSWORD 
+                RESET PASSWORD
               </p>
               <p className=" text-sm font-light font-[poppins]">
                 {isUserverified

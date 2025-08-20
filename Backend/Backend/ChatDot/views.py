@@ -8,14 +8,13 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth import authenticate
-from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
-from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.core.mail import send_mail
 from Backend.settings import EMAIL_HOST_USER
 from datetime import datetime,timedelta
 from django.utils import timezone
 from django.template.loader import render_to_string
-from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from django.views.decorators.csrf import csrf_exempt
 from collections import defaultdict
@@ -295,31 +294,13 @@ def get_messages(request):
         return Response({'detail': 'Sender and receiver are required'}, status=status.HTTP_400_BAD_REQUEST)
     
     try:
-        # Get the last message for connection update
+       
         last_msg = ChatMessage.objects(
             MongoQ(sender=sender, receiver=receiver) | MongoQ(sender=receiver, receiver=sender),
             is_bothdeleted=False  
         ).order_by('-timestamp').first()
 
-        # Update connection with last message info
-        # if last_msg:
-        #     if last_msg.format == "image":
-        #         last_msg_text = "📷 photo"
-        #     Connections.objects(
-        #         MongoQ(me=sender, my_friend=receiver) | MongoQ(me=receiver, my_friend=sender)
-        #     ).update_one(
-        #         set__last_message=last_msg_text,
-        #         set__last_message_time=last_msg.timestamp
-        #     )
-        # else:
-        #     Connections.objects(
-        #         MongoQ(me=sender, my_friend=receiver) | MongoQ(me=receiver, my_friend=sender)
-        #     ).update_one(
-        #         set__last_message=None,
-        #         set__last_message_time=None
-        #     )
-
-        # Mark messages as seen
+ 
         ChatMessage.objects.filter(
             __raw__={
                 "$or": [
@@ -329,14 +310,9 @@ def get_messages(request):
             }
         ).update(seen=True)
 
-        # Fetch all messages
-        messages = ChatMessage.objects.filter(
-            __raw__={
-                "$or": [
-                    {"sender": sender, "receiver": receiver},
-                    {"sender": receiver, "receiver": sender}
-                ]
-            }
+        messages = ChatMessage.objects(
+            Q(sender=sender, receiver=receiver) | Q(sender=receiver, receiver=sender),
+            is_cleared_by__ne=sender  # Don't show messages cleared by this user
         ).order_by('timestamp')
 
         grouped = defaultdict(list)
@@ -394,6 +370,9 @@ def get_messages(request):
     except Exception as e:
         print(f"Error in get_messages: {e}")
         return Response({'detail': 'Server error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -487,6 +466,7 @@ def otpfor_resetpass(request):
 
 
 
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def change_password(request):
@@ -514,6 +494,8 @@ def change_password(request):
 
 
 
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def search_users(request):
@@ -526,9 +508,7 @@ def search_users(request):
  
     search_regex = r'\b' + search 
 
-    # Filter by username or name (case-insensitive contains)
     users = User.objects.filter(
-        # Q(username__icontains=search) | Q(fullname__icontains=search).
          Q(username__iregex=search_regex) | Q(fullname__iregex=search_regex)
     ).exclude(id=from_id)
     results = [
@@ -558,6 +538,8 @@ def search_users(request):
     return Response({"results": results},status=status.HTTP_200_OK)
 
 
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def add_friend(request):
@@ -567,6 +549,8 @@ def add_friend(request):
     FriendRequests(requested_by=User.objects.get(id=is_from), requested_to=is_to).save()
     
     return Response(status=status.HTTP_200_OK)
+
+
 
 
 @api_view(['POST'])
@@ -581,6 +565,8 @@ def cancel_friend_request(request):
     ).delete()
     
     return Response(status=status.HTTP_200_OK)
+
+
 
 
 @api_view(['POST'])
@@ -606,6 +592,8 @@ def get_all_request(request):
     return Response({"requests": requests },status=status.HTTP_200_OK)
 
 
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def confirm_request(request):
@@ -628,6 +616,8 @@ def confirm_request(request):
 
 
 
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def reject_req(request):
@@ -635,6 +625,8 @@ def reject_req(request):
     FriendRequests.objects.get(id=req_id).delete()
 
     return Response(status=status.HTTP_200_OK)
+
+
 
 
 @api_view(['POST'])
@@ -648,12 +640,6 @@ def profile_edit(request):
         about = request.data.get("about")
         profile = request.FILES.get("profile")
         operation = request.data.get("operation")
-        print(operation)
-        print(profile)
-
-
-
-        print(profile)
 
         user.fullname = name
 
@@ -667,15 +653,14 @@ def profile_edit(request):
         elif operation=="nochange":
             ...
 
-        # if remove is not None and remove == "remove":
-        #     user.profile = None
-        #     print("okok")
         user.save()
 
         return Response({"detail": "Profile updated successfully"}, status=200)
 
     except Exception as e:
         return Response({"detail": str(e)}, status=500)
+
+
 
 
 @api_view(['POST'])
@@ -689,6 +674,8 @@ def check_password(request):
         return Response(status=status.HTTP_200_OK)
 
 
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def delete_account(request):
@@ -696,6 +683,8 @@ def delete_account(request):
     User.objects.get(email=user).delete()
    
     return Response(status=status.HTTP_200_OK)
+
+
 
 
 @api_view(['POST'])
@@ -707,6 +696,8 @@ def unfriend(request):
     ChatMessage.objects(MongoQ(sender=me, receiver=my_friend) |MongoQ(receiver=my_friend, sender=me)).delete() 
     
     return Response(status=status.HTTP_200_OK)
+
+
 
 
 @api_view(['POST'])

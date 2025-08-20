@@ -1,13 +1,15 @@
-import React, { useRef } from "react";
-import { useState } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { useSelector } from "react-redux";
-import { useEffect } from "react";
 import { fetchWithAuth } from "../../utils";
 import { format } from "date-fns";
 import Cookies from "universal-cookie";
 import ProfileView from "./modals/ProfileView";
-import Frndrequest from "./modals/Frndrequest";
-import { forwardRef, useImperativeHandle } from "react";
 import UnfriendModal from "./modals/UnfriendModal";
 
 const Sidebar = forwardRef(
@@ -16,20 +18,21 @@ const Sidebar = forwardRef(
     const [allusers, setAllUsers] = useState([]);
     const [isSelected, setisSelected] = useState();
     const [imageError, setImageError] = useState(false);
-    const { user } = useSelector((state) => state.chatdot);
+    const [dropdownPosition, setDropdownPosition] = useState("bottom");
+    const [showProfileView, setshowProfileView] = useState(false);
+    const [profileUser, setProfileUser] = useState(null);
+    const [showUnfriendModal, setshowUnfriendModal] = useState(false);
+    const [unFriendUser, setunFriendUser] = useState(null);
     const [isOptionMenu, setisOptionMenu] = useState({
       userid: null,
       open: false,
       user: null,
     });
+
+    const { user } = useSelector((state) => state.chatdot);
     const useralterdropdownRef = useRef(null);
-    const [dropdownPosition, setDropdownPosition] = useState("bottom");
     const cookies = new Cookies();
     const access = cookies.get("access");
-    const [showProfileView, setshowProfileView] = useState(false);
-    const [profileUser, setProfileUser] = useState(null);
-    const [showUnfriendModal, setshowUnfriendModal] = useState(false);
-    const [unFriendUser, setunFriendUser] = useState(null);
 
     const handleBlockClick = (chatuser) => {
       onBlock(chatuser.username);
@@ -50,57 +53,7 @@ const Sidebar = forwardRef(
       setisSelected(user.name);
     };
 
-    const formatUserList = (users) => {
-      return users.map((user) => {
-        let formattedTime = "";
-        if (user.last_message_time) {
-          const msgDate = new Date(user.last_message_time);
-          const now = new Date();
-
-          const isToday =
-            msgDate.getDate() === now.getDate() &&
-            msgDate.getMonth() === now.getMonth() &&
-            msgDate.getFullYear() === now.getFullYear();
-
-          formattedTime = isToday
-            ? format(msgDate, "hh:mm a")
-            : format(msgDate, "dd MMM");
-        }
-
-        return {
-          ...user,
-          formattedTime,
-        };
-      });
-    };
-
-    // Handle latestMsg updates
-    useEffect(() => {
-      if (!latestMsg || !Array.isArray(latestMsg)) return;
-
-      setAllUsers((prevList) => {
-        let updatedList = [...prevList];
-
-        latestMsg.forEach((newItem) => {
-          const existingIndex = updatedList.findIndex(
-            (item) => item.username === newItem.username
-          );
-
-          const enhancedItem = formatUserList([newItem])[0];
-
-          if (existingIndex !== -1) {
-            updatedList[existingIndex] = {
-              ...updatedList[existingIndex],
-              ...enhancedItem,
-            };
-          } else {
-            updatedList.unshift(enhancedItem);
-          }
-        });
-
-        return updatedList;
-      });
-    }, [latestMsg]);
+    useImperativeHandle(ref, () => fetchUsers);
 
     const fetchUsers = async () => {
       try {
@@ -131,6 +84,50 @@ const Sidebar = forwardRef(
       } catch (error) {
         console.error("Error fetching users:", error);
       }
+    };
+
+    const formatUserList = (users) => {
+      return users.map((user) => {
+        let formattedTime = "";
+        if (user.last_message_time) {
+          const msgDate = new Date(user.last_message_time);
+          const now = new Date();
+
+          const isToday =
+            msgDate.getDate() === now.getDate() &&
+            msgDate.getMonth() === now.getMonth() &&
+            msgDate.getFullYear() === now.getFullYear();
+
+          formattedTime = isToday
+            ? format(msgDate, "hh:mm a")
+            : format(msgDate, "dd MMM");
+        }
+
+        return {
+          ...user,
+          formattedTime,
+        };
+      });
+    };
+
+    // Handle latestMsg updates
+
+    const handleShowProfile = (e, user) => {
+      e.stopPropagation();
+      setProfileUser(user);
+      setshowProfileView(true);
+      setisOptionMenu({
+        open: false,
+        userid: null,
+        user: null,
+      });
+    };
+
+    // Handle profile modal closing
+    const handleCloseProfile = () => {
+      console.log("Closing profile modal");
+      setshowProfileView(false);
+      setProfileUser(null);
     };
 
     const filteredUsers = allusers.filter(
@@ -164,6 +161,11 @@ const Sidebar = forwardRef(
       }, 0);
     };
 
+    const handleUnfriend = (chatuser) => {
+      setshowUnfriendModal(true);
+      setunFriendUser(chatuser);
+    };
+
     useEffect(() => {
       function handleClickOutside(e) {
         if (
@@ -185,23 +187,32 @@ const Sidebar = forwardRef(
       }
     }, [isOptionMenu.open]);
 
-    const handleShowProfile = (e, user) => {
-      e.stopPropagation();
-      setProfileUser(user);
-      setshowProfileView(true);
-      setisOptionMenu({
-        open: false,
-        userid: null,
-        user: null,
-      });
-    };
+    useEffect(() => {
+      if (!latestMsg || !Array.isArray(latestMsg)) return;
 
-    // Handle profile modal closing
-    const handleCloseProfile = () => {
-      console.log("Closing profile modal");
-      setshowProfileView(false);
-      setProfileUser(null);
-    };
+      setAllUsers((prevList) => {
+        let updatedList = [...prevList];
+
+        latestMsg.forEach((newItem) => {
+          const existingIndex = updatedList.findIndex(
+            (item) => item.username === newItem.username
+          );
+
+          const enhancedItem = formatUserList([newItem])[0];
+
+          if (existingIndex !== -1) {
+            updatedList[existingIndex] = {
+              ...updatedList[existingIndex],
+              ...enhancedItem,
+            };
+          } else {
+            updatedList.unshift(enhancedItem);
+          }
+        });
+
+        return updatedList;
+      });
+    }, [latestMsg]);
 
     useEffect(() => {
       if (access && user?.username) {
@@ -209,12 +220,6 @@ const Sidebar = forwardRef(
       }
     }, [access, user?.username]);
 
-    useImperativeHandle(ref, () => fetchUsers);
-
-    const handleUnfriend = (chatuser) => {
-      setshowUnfriendModal(true);
-      setunFriendUser(chatuser);
-    };
     return (
       <>
         <div className="h-[10%] flex items-center px-4">
@@ -268,7 +273,6 @@ const Sidebar = forwardRef(
                     <p className="text-xs text-gray-500 truncate max-w-[50px] ">
                       {chatuser.last_message || "No messages yet"}
                     </p>
-                   
                   </div>
                 </div>
                 <div className="flex flex-col items-center gap-1.5  w-[20%]">
@@ -283,7 +287,6 @@ const Sidebar = forwardRef(
                 </div>
               </div>
 
-              {/* Context Menu Dropdown */}
               {isOptionMenu.open && isOptionMenu.userid === chatuser.id && (
                 <div
                   ref={useralterdropdownRef}

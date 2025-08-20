@@ -13,12 +13,6 @@ const AccountDelConfimModal = ({ isOpen, onClose }) => {
   const dispatch = useDispatch();
   const cookies = new Cookies();
   const access = cookies.get("access");
-  useEffect(() => {
-    if (isOpen) {
-      setPassword("");
-      setError("");
-    }
-  }, [isOpen]);
 
   const checkPassword = async () => {
     if (password.length < 8) {
@@ -52,6 +46,7 @@ const AccountDelConfimModal = ({ isOpen, onClose }) => {
       setLoading(false);
     }
   };
+
   const deleteAccount = async () => {
     try {
       const res = await fetchWithAuth(
@@ -79,6 +74,13 @@ const AccountDelConfimModal = ({ isOpen, onClose }) => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      setPassword("");
+      setError("");
+    }
+  }, [isOpen]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent bg-opacity-40 backdrop-blur-sm transition-opacity">

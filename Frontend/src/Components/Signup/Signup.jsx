@@ -1,19 +1,11 @@
 import { useEffect, useState, useRef } from "react";
-import "../../Components/Style.css";
 import { Link, useNavigate } from "react-router-dom";
-import { FaBullseye, FaUser } from "react-icons/fa";
-import { useSelector, useDispatch } from "react-redux";
+import { FaUser } from "react-icons/fa";
+import { useSelector } from "react-redux";
+import "../../Components/Style.css";
 
 const Signup = () => {
-  const { isLoggedIn } = useSelector((state) => state.chatdot.user);
-  const navigate = useNavigate();
-  useEffect(() => {
-    if (isLoggedIn) {
-      navigate("/", { replace: true });
-    }
-  }, [isLoggedIn, navigate]);
-
-  console.log(isLoggedIn);
+  const [confirmpass, setconfirmpass] = useState(false);
   const [isEmailSubmitted, setisEmailSubmitted] = useState(false);
   const [isEmailAuthenticated, setisEmailAuthenticated] = useState(false);
   const [isUsernameValid, setisUsernameValid] = useState();
@@ -21,6 +13,13 @@ const Signup = () => {
   const [loading, setloading] = useState(false);
   const [newotp, setnewotp] = useState(false);
   const [profilepic, setprofilepic] = useState(null);
+  const [errors, seterrors] = useState({
+    email: "",
+  });
+  const [isOtpValid, setisOtpValid] = useState({
+    valid: true,
+    reason: "",
+  });
   const [formData, setformData] = useState({
     name: "",
     email: "",
@@ -30,15 +29,11 @@ const Signup = () => {
     confirmpass: "",
     profile: null,
   });
-  const [isOtpValid, setisOtpValid] = useState({
-    valid: true,
-    reason: "",
-  });
-  const [confirmpass, setconfirmpass] = useState(false);
-  const [errors, seterrors] = useState({
-    email: "",
-  });
+
+  const { isLoggedIn } = useSelector((state) => state.chatdot.user);
+  const navigate = useNavigate();
   const fileInputRef = useRef(null);
+
   const EmailVerfication = async (e) => {
     e.preventDefault();
     const email = formData.email.toLowerCase();
@@ -207,6 +202,12 @@ const Signup = () => {
   const triggerFileInput = () => {
     fileInputRef.current.click();
   };
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigate("/", { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
 
   return (
     <section className="h-screen w-full flex items-center justify-center">

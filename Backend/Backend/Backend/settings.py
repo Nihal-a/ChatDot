@@ -1,5 +1,5 @@
 from pathlib import Path
-
+from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -58,20 +58,14 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'Backend.wsgi.application'
 
-
 ASGI_APPLICATION = 'Backend.asgi.application'
 
-# Channels configuration
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels.layers.InMemoryChannelLayer",
        
     },
 }
-
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
     'default': {
@@ -90,6 +84,10 @@ from mongoengine import connect
 from urllib.parse import quote_plus
 from ChatDot.mongodb import ChatMessage,Connections 
 import certifi
+from mongoengine import *
+from datetime import datetime
+from mongoengine.queryset.visitor import Q
+import os
 
 username = quote_plus("blackeye")
 password = quote_plus("password@333")  
@@ -105,37 +103,6 @@ connect(
 MONGO_URI = f"mongodb+srv://{username}:{password}@chatdotcluster.yvfb65n.mongodb.net/?retryWrites=true&w=majority&appName=ChatDotCluster"
 MONGO_DB_NAME = "chatDotDB"
 
-# ChatMessage.objects(form__exists=False).update(set__form="text")  #to set new field in exsting datas
-# # ChatMessage.objects(is_blocked_by__exists=False).update(set__is_blocked_by=[])
-
-
-# Connections.update_many({}, {'$unset': {'block': ""}})
-# Connections.objects.exclude('block')
-from mongoengine import *
-
-from datetime import datetime
-from mongoengine.queryset.visitor import Q
-
-
-
-
-# msg=Connections(
-#     me="nihal",
-#     my_friend="mohammed",
-#     block=False   
-# )
-# msg.save()
-
-
-# for msg in ChatMessage.objects():
-#     if isinstance(msg.is_deleted_by, str):
-#         msg.is_deleted_by = [msg.is_deleted_by]
-#         msg.save()
-    
-
-
-import os
-
 MEDIA_URL = 'media/' 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -145,9 +112,7 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     'http://192.168.1.65:5173',
-    'http://192.168.18.144:5173',
-    # "http://127.0.0.1:5173", 
-    
+    'http://192.168.18.144:5173',  
 ]
 
 
@@ -166,9 +131,6 @@ REST_FRAMEWORK = {
    
 }
 
-
-
-from datetime import timedelta
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=10),
@@ -198,9 +160,6 @@ DEFAULT_FROM_EMAIL ='blackeye0265@gmail.com'
 EMAIL_USE_SSL = False 
 
 
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -217,9 +176,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
@@ -228,13 +184,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
 STATIC_URL = 'static/'
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

@@ -1,25 +1,29 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { fetchWithAuth } from "../../../utils";
-import DeleteConfirmModal from "./DeleteConfirmModal";
 import AccountDelConfimModal from "./AccountDelConfimModal";
 
 const ProfileView = ({ isOpen, onClose, Seluser }) => {
+  if (!isOpen || !Seluser) return null;
+
   const [isSameUser, setisSameUser] = useState(false);
-  const modalRef = useRef();
   const [formData, setformData] = useState({});
-  const fileInputRef = useRef(null);
   const [profilepic, setprofilepic] = useState(null);
+  const { user } = useSelector((state) => state.chatdot);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isEdit, setisEdit] = useState({
     name: false,
     about: false,
     profile: false,
   });
-  const { user } = useSelector((state) => state.chatdot);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const fileInputRef = useRef(null);
+  const modalRef = useRef();
+
   const triggerFileInput = () => {
     fileInputRef.current.click();
   };
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -30,63 +34,6 @@ const ProfileView = ({ isOpen, onClose, Seluser }) => {
       }));
     }
   };
-
-  const openDeleteModal = () => {
-    setShowDeleteModal(true);
-  };
-
-  useEffect(() => {
-    if (Seluser && Seluser.username == user.username) {
-      setisSameUser(true);
-      // setprofilepic(formData.profile);
-    }
-    setformData(() => ({
-      name: user.name,
-      email: user.email,
-      username: user.username,
-      profile: user.profile,
-      about: user.about,
-    }));
-  }, [isOpen]);
-
-  // useEffect(() => {
-  //   function handleClickOutside(e) {
-  //     if (modalRef.current && !modalRef.current.contains(e.target)) {
-  //       console.log("Clicked outside modal, closing...");
-  //       setisEdit((prev) => ({
-  //         name: false,
-  //         about: false,
-  //         profile: false,
-  //       }));
-  //       // onClose();
-  //     }
-  //   }
-
-  //   if (isOpen) {
-  //     const timeoutId = setTimeout(() => {
-  //       document.addEventListener("mousedown", handleClickOutside);
-  //     }, 100);
-
-  //     return () => {
-  //       clearTimeout(timeoutId);
-  //       document.removeEventListener("mousedown", handleClickOutside);
-  //     };
-  //   }
-  // }, [isOpen, onClose]);
-
-  useEffect(() => {
-    function handleEscape(e) {
-      if (e.key === "Escape") {
-        console.log("Escape pressed, closing modal...");
-        onClose();
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
-      return () => document.removeEventListener("keydown", handleEscape);
-    }
-  }, [isOpen, onClose]);
 
   const handleProfileEdit = async (e) => {
     e.preventDefault();
@@ -139,13 +86,38 @@ const ProfileView = ({ isOpen, onClose, Seluser }) => {
     }
   };
 
-  if (!isOpen || !Seluser) return null;
-
   const handleClose = (e) => {
     e.stopPropagation();
     console.log("Close button clicked");
     onClose();
   };
+  useEffect(() => {
+    if (Seluser && Seluser.username == user.username) {
+      setisSameUser(true);
+      // setprofilepic(formData.profile);
+    }
+    setformData(() => ({
+      name: user.name,
+      email: user.email,
+      username: user.username,
+      profile: user.profile,
+      about: user.about,
+    }));
+  }, [isOpen]);
+
+  useEffect(() => {
+    function handleEscape(e) {
+      if (e.key === "Escape") {
+        console.log("Escape pressed, closing modal...");
+        onClose();
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape);
+      return () => document.removeEventListener("keydown", handleEscape);
+    }
+  }, [isOpen, onClose]);
 
   return (
     <>
@@ -240,7 +212,7 @@ const ProfileView = ({ isOpen, onClose, Seluser }) => {
                   <p
                     className="font-medium md:text-md text-sm font-[inter] max-w-fit text-center cursor-pointer text-red-600"
                     onClick={() => {
-                      openDeleteModal();
+                      setShowDeleteModal(true);
                     }}
                   >
                     Delete Account

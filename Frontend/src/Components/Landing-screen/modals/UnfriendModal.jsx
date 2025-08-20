@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+
 import { fetchWithAuth } from "../../../utils";
-import Cookies from "universal-cookie";
 import { useSelector } from "react-redux";
+import Cookies from "universal-cookie";
 
 const UnfriendModal = ({ isOpen, onClose, unfrienduser, refetch }) => {
   if (!isOpen) return null;
-  console.log(unfrienduser);
+
   const cookies = new Cookies();
   const access = cookies.get("access");
   const { user } = useSelector((state) => state.chatdot);

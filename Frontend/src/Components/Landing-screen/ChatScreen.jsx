@@ -1,8 +1,10 @@
 import React from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { VscSend } from "react-icons/vsc";
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { Logout } from "../Redux/Slice";
+import { fetchWithAuth } from "../../utils";
+
 import {
   forwardRef,
   useImperativeHandle,
@@ -11,8 +13,7 @@ import {
   useRef,
   useCallback,
 } from "react";
-import { Logout } from "../Redux/Slice";
-import { fetchWithAuth } from "../../utils";
+
 import {
   format,
   parse,
@@ -21,140 +22,60 @@ import {
   isToday,
   isYesterday,
 } from "date-fns";
+
 import Cookies from "universal-cookie";
 import Frndrequest from "./modals/Frndrequest";
 import DeleteConfirmModal from "./modals/DeleteConfirmModal";
 import ProfileView from "./modals/ProfileView";
+import ImageViewModal from "./modals/ImageViewModal";
 
 const ChatScreen = forwardRef(
   (
     { selectedUser, onClose, onlatestMsg, updateselectUser, callgetUsers },
     ref
   ) => {
-    const { user } = useSelector((state) => state.chatdot);
     const [dropdown, setDropdown] = useState(false);
     const [msgalterdropdown, setmsgalterdropdown] = useState(false);
     const [dropdownPosition, setDropdownPosition] = useState("bottom");
-    const dropdownRef = useRef(null);
-    const msgalterdropdownRef = useRef(null);
-    const fileInputRef = useRef(null);
     const [profileUser, setProfileUser] = useState(null);
     const [showProfileView, setshowProfileView] = useState(false);
-    const cookies = new Cookies();
-    const navigate = useNavigate();
-    const dispatch = useDispatch();
     const [input, setinput] = useState("");
     const [messages, setmessages] = useState([]);
-    const access = cookies.get("access");
-    const socketRef = useRef(null);
-    const messageEndRef = useRef(null);
     const [loading, setLoading] = useState(false);
-    const prevUserRef = useRef(null);
-    const textareaRef = useRef();
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [msgAlterOptions, setmsgAlterOptions] = useState({
-      msg_id: null,
-      alterPermissible: true,
-    });
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showImageViewModal, setshowImageViewModal] = useState(false);
+    const [showImageUrl, setshowImageUrl] = useState(null);
     const [selectedMsgId, setSelectedMsgId] = useState(null);
-    const [isEditingMsg, setisEditingMsg] = useState({
-      edit: false,
-      msgid: null,
-    });
     const [ModalMsg, setModalMsg] = useState(null);
     const [deleteType, setDeleteType] = useState(null);
     const [mainPreviewImage, setmainPreviewImage] = useState(null);
     const [files, setFiles] = useState([]);
     const [previews, setPreviews] = useState([]);
     const [CurrentIndex, setCurrentIndex] = useState(0);
+    const [msgAlterOptions, setmsgAlterOptions] = useState({
+      msg_id: null,
+      alterPermissible: true,
+    });
+    const [isEditingMsg, setisEditingMsg] = useState({
+      edit: false,
+      msgid: null,
+    });
 
-    const scrollToBottom = useCallback(() => {
-      setTimeout(() => {
-        messageEndRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "end",
-        });
-      }, 100);
-    }, []);
+    const { user } = useSelector((state) => state.chatdot);
 
-    const sendMessage = () => {
-      if (input.trim() === "") return;
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
+    const cookies = new Cookies();
+    const access = cookies.get("access");
 
-      console.log("🚀 Sending message:", input);
-
-      socketRef.current.send(
-        JSON.stringify({
-          type: "message",
-          sender: user.username,
-          message: input.trim(),
-          rec: selectedUser.username,
-        })
-      );
-
-      setinput("");
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-      }
-    };
-
-    // const sendImage = () => {
-    //   console.log("🚀 Sending message:", files);
-
-    //   files.forEach((file) => {
-    //     const reader = new FileReader();
-    //     console.log("okok");
-    //     reader.onload = () => {
-    //       const base64data = reader.result;
-
-    //       socket.send(
-    //         JSON.stringify({
-    //           type: "images",
-    //           sender: user.username,
-    //           rec: selectedUser.username,
-    //           filename: file.name,
-    //           images: base64data,
-    //         })
-    //       );
-    //     };
-
-    //     reader.readAsDataURL(file);
-    //   });
-    //   console.log("okokok");
-    //   setPreviews([]);
-    //   setFiles([]);
-    // };
-
-    const sendImage = () => {
-      if (!socketRef) {
-        console.log("Socket not ready!");
-        return;
-      }
-
-      files.forEach((file) => {
-        const reader = new FileReader();
-
-        reader.onload = () => {
-          const base64data = reader.result;
-          console.log("Sending", file.name, "length:", base64data.length);
-
-          socketRef.current.send(
-            JSON.stringify({
-              type: "images",
-              sender: user.username,
-              rec: selectedUser.username,
-              filename: file.name,
-              images: base64data,
-            })
-          );
-        };
-
-        reader.readAsDataURL(file);
-      });
-
-      setPreviews([]);
-      setFiles([]);
-    };
+    const dropdownRef = useRef(null);
+    const msgalterdropdownRef = useRef(null);
+    const fileInputRef = useRef(null);
+    const socketRef = useRef(null);
+    const messageEndRef = useRef(null);
+    const prevUserRef = useRef(null);
+    const textareaRef = useRef();
 
     const handleMsgOptions = (msgid) => {
       const entry = Object.entries(messages).find(([_, msgs]) =>
@@ -166,8 +87,6 @@ const ChatScreen = forwardRef(
       const [date, msgs] = entry;
       const msg = msgs.find((m) => m.id === msgid);
       if (!msg) return;
-
-      // Don't show options if user already deleted the message for themselves
       if (msg.is_deleted || msg.is_bothdeleted) {
         setmsgAlterOptions({
           msg_id: msgid,
@@ -178,6 +97,7 @@ const ChatScreen = forwardRef(
       }
 
       const now = new Date();
+
       if (date === "Today") {
         const todayStr = format(now, "dd MMMM yyyy");
 
@@ -228,6 +148,61 @@ const ChatScreen = forwardRef(
       setmsgalterdropdown(true);
     };
 
+    const sendMessage = () => {
+      if (input.trim() === "") return;
+
+      console.log("🚀 Sending message:", input);
+
+      socketRef.current.send(
+        JSON.stringify({
+          type: "message",
+          sender: user.username,
+          message: input.trim(),
+          rec: selectedUser.username,
+        })
+      );
+
+      setinput("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
+    };
+
+    const sendImage = () => {
+      if (!socketRef) {
+        console.log("Socket not ready!");
+        return;
+      }
+
+      files.forEach((file) => {
+        const reader = new FileReader();
+
+        reader.onload = () => {
+          const base64data = reader.result;
+          console.log("Sending", file.name, "length:", base64data.length);
+
+          socketRef.current.send(
+            JSON.stringify({
+              type: "images",
+              sender: user.username,
+              rec: selectedUser.username,
+              filename: file.name,
+              images: base64data,
+            })
+          );
+        };
+
+        reader.readAsDataURL(file);
+      });
+
+      setPreviews([]);
+      setFiles([]);
+    };
+
+    const openImageViewModal = (imgurl) => {
+      setshowImageUrl(imgurl);
+      setshowImageViewModal(true);
+    };
     const openDeleteModal = (msgId, type) => {
       console.log(type);
       setModalMsg(type);
@@ -243,6 +218,18 @@ const ChatScreen = forwardRef(
         deleteMessageBoth(selectedMsgId);
       }
       setShowDeleteModal(false);
+    };
+
+    const handleShowProfile = (e, user) => {
+      e.stopPropagation();
+      setProfileUser(user);
+      setshowProfileView(true);
+    };
+
+    const handleCloseProfile = () => {
+      console.log("Closing profile modal");
+      setshowProfileView(false);
+      setProfileUser(null);
     };
 
     const deleteMessageBoth = (msgid) => {
@@ -348,19 +335,6 @@ const ChatScreen = forwardRef(
       fileInputRef.current.click();
     };
 
-    // const handleFileChange = (e) => {
-    //   const filesArray = Array.from(e.target.files);
-    //   if (filesArray.length > 0) {
-    //     const firstUrl = URL.createObjectURL(filesArray[0]);
-    //     setmainPreviewImage(firstUrl);
-    //   }
-
-    //   // create URL list only once
-    //   const urlList = filesArray.map((file) => URL.createObjectURL(file));
-
-    //   setuploadImagesUrl((prev) => [...prev, ...urlList]);
-    //   setuploadImages((prev) => [...prev, ...filesArray]); // no need of extra temp_files
-    // };
     const handleFileChange = (e) => {
       const selectedFiles = Array.from(e.target.files);
 
@@ -371,13 +345,12 @@ const ChatScreen = forwardRef(
 
       setFiles((prev) => {
         const updated = [...prev, ...selectedFiles];
-        setCurrentIndex(updated.length - 1); // set to last
+        setCurrentIndex(updated.length - 1);
         return updated;
       });
 
       setPreviews((prev) => [...prev, ...newPreviews]);
 
-      // set main preview to first of selected
       setmainPreviewImage(URL.createObjectURL(selectedFiles[0]));
     };
 
@@ -422,6 +395,32 @@ const ChatScreen = forwardRef(
       navigate("/signin");
     };
 
+    const scrollToBottom = useCallback(() => {
+      setTimeout(() => {
+        messageEndRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "end",
+        });
+      }, 100);
+    }, []);
+
+    useEffect(() => {
+      function handleClickOutside(e) {
+        if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+          setDropdown(false);
+        }
+        if (
+          msgalterdropdownRef.current &&
+          !msgalterdropdownRef.current.contains(e.target)
+        ) {
+          setmsgalterdropdown(false);
+        }
+      }
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
     useEffect(() => {
       if (!selectedUser) return;
 
@@ -440,10 +439,6 @@ const ChatScreen = forwardRef(
 
       socketRef.current = socket;
 
-      // Auto-mark messages as seen when chat opens or new messages arrive
-
-      // Update only the WebSocket message handling section of your ChatScreen component
-
       socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
         console.log("📨 Received WebSocket data:", data);
@@ -453,7 +448,6 @@ const ChatScreen = forwardRef(
           return;
         }
 
-        // Handle seen status updates
         if (data.type === "seen") {
           console.log("Processing seen update:", data);
 
@@ -467,7 +461,7 @@ const ChatScreen = forwardRef(
                   msg.receiver === selectedUser.username &&
                   data.seen_by === selectedUser.username &&
                   data.message_sender === user.username &&
-                  !msg.is_ghost // Don't mark ghost messages as seen
+                  !msg.is_ghost
                 ) {
                   return { ...msg, seen: true };
                 }
@@ -625,7 +619,6 @@ const ChatScreen = forwardRef(
         if (data.type === "message" || !data.type) {
           console.log("📨 Processing new message:", data);
 
-          // Ensure we have all required fields
           if (!data.datetime || !data.sender || !data.message) {
             console.error("❌ Invalid message data:", data);
             return;
@@ -651,7 +644,7 @@ const ChatScreen = forwardRef(
             time: formattedTime,
             seen: data.seen || false,
             is_edited: false,
-            is_ghost: data.is_ghost || false, // Track if this is a ghost message
+            is_ghost: data.is_ghost || false,
           };
 
           console.log("📨 New message to add:", newMessage);
@@ -721,7 +714,6 @@ const ChatScreen = forwardRef(
         if (data.type === "image" || !data.type) {
           console.log("📨 Processing new message:", data);
 
-          // Ensure we have all required fields
           if (!data.datetime || !data.sender || !data.images) {
             console.error("❌ Invalid message data:", data);
             return;
@@ -841,7 +833,6 @@ const ChatScreen = forwardRef(
 
     useImperativeHandle(ref, () => ({
       handleBlock: (targetUsername) => {
-        // if (!selectedUser) return
         socketRef.current?.send(
           JSON.stringify({
             type: "block",
@@ -851,7 +842,6 @@ const ChatScreen = forwardRef(
         );
       },
       handleunBlock: (targetUsername) => {
-        // if (!selectedUser) return;
         socketRef.current.send(
           JSON.stringify({
             type: "unblock",
@@ -860,8 +850,8 @@ const ChatScreen = forwardRef(
           })
         );
       },
+
       handleClearChat: (targetUsername) => {
-        // if (!selectedUser) return;
         socketRef.current.send(
           JSON.stringify({
             type: "clearchat",
@@ -949,27 +939,9 @@ const ChatScreen = forwardRef(
       }
     }, [selectedUser, user.username, scrollToBottom]);
 
-    // Auto-scroll when messages change
     useEffect(() => {
       scrollToBottom();
     }, [messages, scrollToBottom]);
-
-    useEffect(() => {
-      function handleClickOutside(e) {
-        if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-          setDropdown(false);
-        }
-        if (
-          msgalterdropdownRef.current &&
-          !msgalterdropdownRef.current.contains(e.target)
-        ) {
-          setmsgalterdropdown(false);
-        }
-      }
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
 
     useEffect(() => {
       const handleEsc = (e) => {
@@ -981,19 +953,6 @@ const ChatScreen = forwardRef(
       window.addEventListener("keydown", handleEsc);
       return () => window.removeEventListener("keydown", handleEsc);
     }, [onClose]);
-
-    const handleShowProfile = (e, user) => {
-      e.stopPropagation();
-      setProfileUser(user);
-      setshowProfileView(true);
-    };
-
-    const handleCloseProfile = () => {
-      console.log("Closing profile modal");
-      setshowProfileView(false);
-      setProfileUser(null);
-    };
-
 
     if (!selectedUser) {
       return (
@@ -1164,12 +1123,20 @@ const ChatScreen = forwardRef(
                         key={`${msg.id}-${index}`}
                         className={`relative w-fit ${
                           format == "image"
-                            ? "max-w-[200px] max-h-[200px] p-3"
-                            : "md:min-w-[12%] min-w-[25%] md:max-w-[70%] max-w-[80%] wrap-break-word pb-3.5"
-                        } px-2 py-1 rounded-lg mb-1 ${
+                            ? " pb-0.5"
+                            : "md:min-w-[12%] min-w-[25%] md:max-w-[70%] max-w-[80%] wrap-break-word  "
+                        }  py-1 rounded-lg mb-1 ${
                           isMe
-                            ? "bg-[#68479D] text-white self-end ml-auto group"
-                            : "bg-white self-start group"
+                            ? `${
+                                msg.format == "text" || deletedGlobally
+                                  ? "bg-[#68479D] text-white self-end ml-auto group px-2 pb-3.5"
+                                  : "bg-transparent text-white self-end ml-auto group  "
+                              }`
+                            : `${
+                                msg.format == "text" || deletedGlobally
+                                  ? "bg-white text-black self-start  group px-2 pb-3.5"
+                                  : "bg-transparent text-white self-start group  "
+                              }`
                         }`}
                       >
                         {format == "text" ? (
@@ -1206,13 +1173,37 @@ const ChatScreen = forwardRef(
                         ) : (
                           // <div className="min-w-full min-h-full overflow-hidden p-3 flex items-center justify-center ">
                           <>
-                            <img
-                              src={msg.image}
-                              className="w-[150px] h-[150px] object-contain rounded"
-                              alt=""
-                            />
-                            <p className="absolute right-1.5 bottom-1 text-[9px] text-gray-300">
+                            <p className="whitespace-pre-wrap md:text-sm text-[16px] ">
+                              {deletedGlobally ? (
+                                deletedGlobally_by === user.username ? (
+                                  "You deleted this message"
+                                ) : (
+                                  "This message was deleted"
+                                )
+                              ) : (
+                                <img
+                                  src={msg.image}
+                                  alt=""
+                                  className="max-w-[200px] max-h-[300px] object-contain rounded-lg ring-1"
+                                  onClick={() => openImageViewModal(msg.image)}
+                                />
+                              )}
+                            </p>
+
+                            <p
+                              className={`absolute ${
+                                isMe ? "right-5" : "right-2.5"
+                              } bottom-0.5 md:text-[9px] text-[8px] text-gray-300`}
+                            >
                               {msg.time}
+                            </p>
+                            <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
+                              {isMe &&
+                                (msg.seen ? (
+                                  <i className="bi bi-check2-all text-blue-400"></i>
+                                ) : (
+                                  <i className="bi bi-check2"></i>
+                                ))}
                             </p>
                           </>
 
@@ -1248,17 +1239,19 @@ const ChatScreen = forwardRef(
                                 >
                                   {msgAlterOptions.alterPermissible && isMe && (
                                     <>
-                                      <div
-                                        className="w-full flex gap-2 items-center text-black cursor-pointer py-1"
-                                        onClick={() =>
-                                          handleeditMsg(msg.id, msg.message)
-                                        }
-                                      >
-                                        <i className="bi bi-pencil text-sm"></i>
-                                        <p className="text-black text-sm">
-                                          Edit
-                                        </p>
-                                      </div>
+                                      {msg.format == "text" && (
+                                        <div
+                                          className="w-full flex gap-2 items-center text-black cursor-pointer py-1"
+                                          onClick={() =>
+                                            handleeditMsg(msg.id, msg.message)
+                                          }
+                                        >
+                                          <i className="bi bi-pencil text-sm"></i>
+                                          <p className="text-black text-sm">
+                                            Edit
+                                          </p>
+                                        </div>
+                                      )}
                                       <div
                                         className="w-full flex gap-2 items-center text-black border-b pb-1 py-1 cursor-pointer"
                                         onClick={() =>
@@ -1284,6 +1277,17 @@ const ChatScreen = forwardRef(
                                       Delete for me
                                     </p>
                                   </div>
+                                  {msg.format == "image" &&
+                                    !deletedGlobally && (
+                                      <a href={msg.image} download="image.jpg">
+                                        <div className="w-full flex gap-2 items-center text-black pb-1 py-1 cursor-pointer">
+                                          <i class="bi bi-download text-sm"></i>
+                                          <p className="text-black text-sm">
+                                            Download
+                                          </p>
+                                        </div>
+                                      </a>
+                                    )}
                                 </div>
                               )}
                           </div>
@@ -1327,16 +1331,16 @@ const ChatScreen = forwardRef(
               previews.map((file, index) => (
                 <div
                   key={file.url}
-                  className="absolute bottom-3.5 left-2 h-[550px] w-[600px] bg-[#e9e9e9] flex flex-col mt-4 shadow-lg z-20 rounded-md"
+                  className="absolute bottom-3.5 left-2 md:h-[550px] h-[200px] md:w-[600px] w-[250px] bg-[#e9e9e9] flex flex-col mt-4 shadow-lg z-20 rounded-md"
                 >
                   <div className="w-full h-[8%] px-1  flex items-center justify-between border-b border-gray-300 shadow-sm">
                     <div></div>
                     <i
-                      className="bi bi-trash p-1.5 bg-white rounded-sm "
+                      className="bi bi-trash md:text-2xl text-xs p-1.5 md:bg-white rounded-sm  "
                       onClick={() => removeImage()}
                     ></i>
                     <i
-                      className="bi bi-x text-2xl bg-white rounded-sm font-medium"
+                      className="bi bi-x md:text-2xl text-sm md:bg-white rounded-sm font-medium"
                       onClick={() => {
                         setPreviews([]);
                       }}
@@ -1374,7 +1378,7 @@ const ChatScreen = forwardRef(
                         ))}
                     </div>
                     <button onClick={sendImage}>
-                      <VscSend className="text-xl text-[#68479D]" />
+                      <VscSend className="md:text-xl text-sm text-[#68479D]" />
                     </button>
                   </div>
                 </div>
@@ -1397,7 +1401,7 @@ const ChatScreen = forwardRef(
                 handletextareaInput();
               }}
               onKeyDown={handleKeyDown}
-              className="w-[95%] py-2.5 px-4 text-sm rounded-xl focus:ring-0 focus:outline-none bg-gray-100 resize-none overflow-y-auto max-h-32"
+              className="w-[95%] py-2.5 px-4  text-sm rounded-xl focus:ring-0 focus:outline-none bg-gray-100 resize-none overflow-y-auto max-h-32"
               rows={1}
             />
 
@@ -1405,7 +1409,7 @@ const ChatScreen = forwardRef(
               onClick={isEditingMsg.edit ? editMsg : sendMessage}
               hidden={previews.length > 0}
             >
-              <VscSend className="text-xl text-[#68479D]" />
+              <VscSend className="md:text-xl text-lg  text-[#68479D]" />
             </button>
           </div>
         )}
@@ -1420,6 +1424,11 @@ const ChatScreen = forwardRef(
           onClose={() => setShowDeleteModal(false)}
           onDelete={handleDelete}
           showMsg={ModalMsg}
+        />
+        <ImageViewModal
+          isOpen={showImageViewModal}
+          onClose={() => setshowImageViewModal(false)}
+          imgurl={showImageUrl}
         />
 
         <Frndrequest
