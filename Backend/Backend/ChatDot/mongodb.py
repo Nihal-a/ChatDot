@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField , BooleanField, ListField, ImageField
+from mongoengine import Document, StringField, DateTimeField , BooleanField, ListField, ImageField, FileField
 import datetime
 
 class ChatMessage(Document):
@@ -18,6 +18,7 @@ class ChatMessage(Document):
     is_ghost_delivery = BooleanField(default=False)  
     format = StringField(required=True, default="text")
     images = ImageField( default="")
+    voice = FileField(default="")
 
 
 class Connections(Document):

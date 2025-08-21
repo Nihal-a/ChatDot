@@ -9,6 +9,8 @@ import Home from "./Components/Landing-screen/Home.jsx";
 import Cookies from "universal-cookie";
 import PrivateRoute from "./PrivateRoute.jsx";
 import ForgotPass from "./Components/ForgotPass/ForgotPass.jsx";
+import VoiceRecorder from "./Voice.jsx";
+import Voiceplayer from "./voiceplayer.jsx";
 
 function App() {
   const [refreshDone, setRefreshDone] = useState(false);
@@ -161,6 +163,8 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/signin" element={<Signin />} />
         <Route path="/forgotpass" element={<ForgotPass />} />
+        <Route path="/voice" element={<VoiceRecorder />} />
+        <Route path="/voiceplayer" element={<Voiceplayer />} />
       </Routes>
     </>
   );

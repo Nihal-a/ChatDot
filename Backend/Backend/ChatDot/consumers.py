@@ -14,7 +14,6 @@ import base64
 from django.core.files.base import ContentFile
 
 User = get_user_model()
-
 ACTIVE_CHAT_SESSIONS = {}
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -157,6 +156,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 
             elif msg_type == "images":
                 await self.handle_images(data)
+                
+            elif msg_type == "voice":
+                await self.handle_voice(data)
 
         except Exception as e:
             print("Error in receive():", e)
@@ -175,7 +177,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # Parse the ISO string properly
         try:
             clear_time = datetime.fromisoformat(clear_time_str.replace("Z", "+00:00"))
-            # Convert to UTC and remove timezone info for MongoDB
+
             clear_time = clear_time.astimezone(timezone.utc).replace(tzinfo=None)
             print("Parsed clear_time:", clear_time)
         except Exception as e:
@@ -505,57 +507,136 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         )
 
-    async def send_sidebar_update(self, receiver_username, sender_username, message, timestamp, is_receiver_active=False):
-        """Send sidebar updates with proper unseen count logic"""
-        
-        unseen_count = await sync_to_async(ChatMessage.objects.filter(
-            sender=sender_username,
-            receiver=receiver_username,
+    
+
+    async def handle_voice(self, data):
+        base64_data = data['audio']
+        filename = data.get('filename', f"voice_{datetime.now().timestamp()}.webm")
+        receiver = data['rec']
+        current_time = datetime.now()
+
+        format, b64str = base64_data.split(';base64,')
+        ext = format.split('/')[-1]  
+        audio_content = ContentFile(base64.b64decode(b64str), name=filename)
+
+        connection_status = await self.check_connection_and_block_status(self.user.username, receiver)
+        if not connection_status['exists']:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'No connection exists with this user'
+            }))
+            return
+
+        if connection_status['is_blocked']:
+            if self.user.username in connection_status['blocked_by']:
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': 'You have blocked this user. Unblock to send messages.'
+                }))
+                return
+            elif receiver in connection_status['blocked_by']:
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': 'You cannot send messages to this user.'
+                }))
+                return
+
+        connection = connection_status['connection']
+        if connection:
+            connection.last_message = "🎤 voice"
+            connection.last_message_time = current_time
+            await sync_to_async(connection.save)()
+
+        chat_message = ChatMessage(
+            sender=self.user.username,
+            receiver=receiver,
+            voice=audio_content,   
+            format="voice",
+            timestamp=current_time,
             seen=False
-        ).count)()
-        
+        )
+        await sync_to_async(chat_message.save)()
+
+        receiver_room_name = self.room_name
+        is_receiver_active = self.is_user_in_active_chat(receiver, receiver_room_name)
+
         if is_receiver_active:
-            unseen_count = 0
-        
-        print(f"📊 Sidebar update - Receiver: {receiver_username}, Unseen: {unseen_count}, Active: {is_receiver_active}")
+            await sync_to_async(chat_message.update)(seen=True)
 
-
-        today = datetime.now().strftime("%d %B %Y")
-        formatted_date = timestamp.strftime("%d %B %Y")
-        yesterday = (datetime.now()-timedelta(days=1)).strftime("%d %B %Y")
-
-        if today==formatted_date :
-            date_key = timestamp.isoformat()
-        elif yesterday==formatted_date:
-            date_key = "Yesterday"
-        else:
-            date_key = timestamp.isoformat()
+        await self.send_sidebar_update(
+            receiver_username=receiver,
+            sender_username=self.user.username,
+            message="🎤 voice",
+            timestamp=current_time,
+            is_receiver_active=is_receiver_active
+        )
 
         await self.channel_layer.group_send(
-            f"user_{sender_username}",
+            self.room_group_name,
             {
-                "type": "sidebar_update", 
-                "data": {
-                    "username": receiver_username,
-                    "last_msg": message,
-                    "last_msg_time": date_key,
-                    "unseen_count": 0  
-                }
+                'type': 'chat_voice',   # ✅ not chat_images
+                'id': str(chat_message.id),
+                'sender': self.user.username,
+                'voice': base64_data,   # ✅ send audio back to frontend
+                'filename': filename,
+                'receiver': receiver,
+                'datetime': current_time.isoformat(),
+                'seen': is_receiver_active,
+                'format': 'voice'
             }
         )
-        
-        await self.channel_layer.group_send(
-            f"user_{receiver_username}",
-            {
-                "type": "sidebar_update",
-                "data": {
-                    "username": sender_username,
-                    "last_msg": message,
-                    "last_msg_time": timestamp.isoformat(),
-                    "unseen_count": unseen_count
+
+    async def send_sidebar_update(self, receiver_username, sender_username, message, timestamp, is_receiver_active=False):
+            """Send sidebar updates with proper unseen count logic"""
+            
+            unseen_count = await sync_to_async(ChatMessage.objects.filter(
+                sender=sender_username,
+                receiver=receiver_username,
+                seen=False
+            ).count)()
+            
+            if is_receiver_active:
+                unseen_count = 0
+            
+            print(f"📊 Sidebar update - Receiver: {receiver_username}, Unseen: {unseen_count}, Active: {is_receiver_active}")
+
+
+            today = datetime.now().strftime("%d %B %Y")
+            formatted_date = timestamp.strftime("%d %B %Y")
+            yesterday = (datetime.now()-timedelta(days=1)).strftime("%d %B %Y")
+
+            if today==formatted_date :
+                date_key = timestamp.isoformat()
+            elif yesterday==formatted_date:
+                date_key = "Yesterday"
+            else:
+                date_key = timestamp.isoformat()
+
+            await self.channel_layer.group_send(
+                f"user_{sender_username}",
+                {
+                    "type": "sidebar_update", 
+                    "data": {
+                        "username": receiver_username,
+                        "last_msg": message,
+                        "last_msg_time": date_key,
+                        "unseen_count": 0  
+                    }
                 }
-            }
-        )
+            )
+            
+            await self.channel_layer.group_send(
+                f"user_{receiver_username}",
+                {
+                    "type": "sidebar_update",
+                    "data": {
+                        "username": sender_username,
+                        "last_msg": message,
+                        "last_msg_time": timestamp.isoformat(),
+                        "unseen_count": unseen_count
+                    }
+                }
+            )    
 
     async def chat_message(self, event):
         """Handle regular chat messages"""
@@ -579,6 +660,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'receiver': event['receiver'],
             'format': event['format'],
             'images': event['images'],
+            'datetime': event['datetime'],
+            'seen': event.get('seen', False),
+            
+        }))
+
+
+    async def chat_voice(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'voice',
+            'id': event['id'],
+            'sender': event['sender'],
+            'receiver': event['receiver'],
+            'format': event['format'],
+            'voice': event['voice'],
             'datetime': event['datetime'],
             'seen': event.get('seen', False),
             

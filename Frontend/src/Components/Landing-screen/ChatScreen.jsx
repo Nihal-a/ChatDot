@@ -1,6 +1,8 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { VscSend } from "react-icons/vsc";
+import { PiMicrophoneLight } from "react-icons/pi";
+import { PiMicrophoneFill } from "react-icons/pi";
 import { useNavigate } from "react-router-dom";
 import { Logout } from "../Redux/Slice";
 import { fetchWithAuth } from "../../utils";
@@ -45,6 +47,8 @@ const ChatScreen = forwardRef(
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showImageViewModal, setshowImageViewModal] = useState(false);
+    const [recording, setRecording] = useState(false);
+    const [audioUrl, setAudioUrl] = useState(null);
     const [showImageUrl, setshowImageUrl] = useState(null);
     const [selectedMsgId, setSelectedMsgId] = useState(null);
     const [ModalMsg, setModalMsg] = useState(null);
@@ -76,6 +80,8 @@ const ChatScreen = forwardRef(
     const messageEndRef = useRef(null);
     const prevUserRef = useRef(null);
     const textareaRef = useRef();
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
 
     const handleMsgOptions = (msgid) => {
       const entry = Object.entries(messages).find(([_, msgs]) =>
@@ -146,6 +152,65 @@ const ChatScreen = forwardRef(
       }, 0);
 
       setmsgalterdropdown(true);
+    };
+
+    const startRecording = async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert(
+          "Microphone not supported on this device/browser or permission denied"
+        );
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunksRef.current.push(event.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, {
+            type: "audio/webm",
+          });
+
+          // Save blob so we can process/send it
+          setAudioUrl(audioBlob);
+          const fileName = `voice_${user.username}_${Date.now()}.webm`;
+          // Convert to Base64 and send
+          const reader = new FileReader();
+          reader.onload = () => {
+            const base64Audio = reader.result;
+            socketRef.current.send(
+              JSON.stringify({
+                type: "voice",
+                sender: user.username,
+                rec: selectedUser.username,
+                filename: fileName,
+                audio: base64Audio,
+              })
+            );
+          };
+          reader.readAsDataURL(audioBlob);
+        };
+
+        mediaRecorder.start();
+        setRecording(true);
+      } catch (err) {
+        console.error("Mic permission or recording failed:", err);
+      }
+    };
+
+    const stopRecording = () => {
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
+        setRecording(false);
+      }
     };
 
     const sendMessage = () => {
@@ -805,6 +870,101 @@ const ChatScreen = forwardRef(
             }, 100);
           }
         }
+
+        if (data.type === "voice" || !data.type) {
+          console.log("📨 Processing new message:", data);
+
+          if (!data.datetime || !data.sender || !data.voice) {
+            console.error("❌ Invalid message data:", data);
+            return;
+          }
+
+          const msgDate = new Date(data.datetime);
+          const formattedDate = format(msgDate, "dd MMMM yyyy");
+          const formattedTime = format(msgDate, "hh:mm a");
+
+          const newMessage = {
+            id: data.id || Date.now(),
+            is_deleted_by: null,
+            is_bothdeleted: false,
+            is_bothdeleted_by: false,
+            sender: data.sender,
+            receiver:
+              data.receiver ||
+              (data.sender === user.username
+                ? selectedUser.username
+                : user.username),
+            message: "",
+            image: data.images,
+            voice: data.voice,
+            format: data.format,
+            time: formattedTime,
+            seen: data.seen || false,
+            is_edited: false,
+            is_ghost: data.is_ghost || false,
+          };
+          console.log("📨 New message to add:", newMessage);
+          setmessages((prevMessages) => {
+            console.log("📚 Previous messages:", prevMessages);
+
+            let groupKey;
+            if (isToday(msgDate)) {
+              groupKey = "Today";
+            } else if (isYesterday(msgDate)) {
+              groupKey = "Yesterday";
+            } else {
+              groupKey = formattedDate;
+            }
+
+            const updatedMessages = { ...prevMessages };
+
+            if (updatedMessages[groupKey]) {
+              const messageExists = updatedMessages[groupKey].some(
+                (msg) => msg.id === newMessage.id
+              );
+
+              if (!messageExists) {
+                updatedMessages[groupKey] = [
+                  ...updatedMessages[groupKey],
+                  newMessage,
+                ];
+              }
+            } else {
+              updatedMessages[groupKey] = [newMessage];
+            }
+
+            console.log("✅ Updated messages:", updatedMessages);
+            setTimeout(() => scrollToBottom(), 0);
+            return updatedMessages;
+          });
+
+          if (
+            data.sender === selectedUser.username &&
+            (data.receiver === user.username || !data.receiver) &&
+            !data.is_ghost &&
+            !selectedUser.is_blocked_by?.includes(data.sender)
+          ) {
+            console.log(
+              "👀 Auto-sending seen notification for message from",
+              data.sender
+            );
+
+            setTimeout(() => {
+              if (
+                socketRef.current &&
+                socketRef.current.readyState === WebSocket.OPEN
+              ) {
+                socketRef.current.send(
+                  JSON.stringify({
+                    type: "seen",
+                    sender: user.username,
+                    receiver: data.sender,
+                  })
+                );
+              }
+            }, 100);
+          }
+        }
       };
 
       socket.onopen = () => {
@@ -911,6 +1071,7 @@ const ChatScreen = forwardRef(
                   is_edited: msg.is_edited,
                   format: msg.format,
                   image: msg.images,
+                  voice: msg.voice,
                 };
               });
             }
@@ -1112,7 +1273,6 @@ const ChatScreen = forwardRef(
                     const deletedGlobally = msg.is_bothdeleted;
                     const deletedGlobally_by = msg.is_bothdeleted_by;
                     const edited = msg.is_edited;
-                    // const format = msg.format;
                     const format = msg.format;
 
                     return (
@@ -1123,19 +1283,25 @@ const ChatScreen = forwardRef(
                         key={`${msg.id}-${index}`}
                         className={`relative w-fit ${
                           format == "image"
+                            ? " pb-0.5 py-1"
+                            : format == "voice"
                             ? " pb-0.5"
-                            : "md:min-w-[12%] min-w-[25%] md:max-w-[70%] max-w-[80%] wrap-break-word  "
-                        }  py-1 rounded-lg mb-1 ${
+                            : "md:min-w-[12%] min-w-[25%] md:max-w-[70%] max-w-[80%] wrap-break-word  py-1"
+                        }   rounded-lg mb-1 ${
                           isMe
                             ? `${
                                 msg.format == "text" || deletedGlobally
                                   ? "bg-[#68479D] text-white self-end ml-auto group px-2 pb-3.5"
-                                  : "bg-transparent text-white self-end ml-auto group  "
+                                  : msg.format == "image" || deletedGlobally
+                                  ? "bg-transparent text-white self-end ml-auto group"
+                                  : "bg-transparent text-white self-end ml-auto group  mb-1"
                               }`
                             : `${
                                 msg.format == "text" || deletedGlobally
                                   ? "bg-white text-black self-start  group px-2 pb-3.5"
-                                  : "bg-transparent text-white self-start group  "
+                                  : msg.format == "image" || deletedGlobally
+                                  ? "bg-white text-black self-start  group px-2 pb-3.5  "
+                                  : "bg-transparent text-white self-start group pb-3.5"
                               }`
                         }`}
                       >
@@ -1171,42 +1337,77 @@ const ChatScreen = forwardRef(
                             )}
                           </>
                         ) : (
-                          // <div className="min-w-full min-h-full overflow-hidden p-3 flex items-center justify-center ">
                           <>
-                            <p className="whitespace-pre-wrap md:text-sm text-[16px] ">
-                              {deletedGlobally ? (
-                                deletedGlobally_by === user.username ? (
-                                  "You deleted this message"
-                                ) : (
-                                  "This message was deleted"
-                                )
-                              ) : (
-                                <img
-                                  src={msg.image}
-                                  alt=""
-                                  className="max-w-[200px] max-h-[300px] object-contain rounded-lg ring-1"
-                                  onClick={() => openImageViewModal(msg.image)}
-                                />
-                              )}
-                            </p>
+                            {msg.format === "image" ? (
+                              // <div className="min-w-full min-h-full overflow-hidden p-3 flex items-center justify-center ">
+                              <>
+                                <p className="whitespace-pre-wrap md:text-sm text-[16px] ">
+                                  {deletedGlobally ? (
+                                    deletedGlobally_by === user.username ? (
+                                      "You deleted this message"
+                                    ) : (
+                                      "This message was deleted"
+                                    )
+                                  ) : (
+                                    <img
+                                      src={msg.image}
+                                      alt=""
+                                      className="max-w-[200px] max-h-[300px] object-contain rounded-lg ring-1"
+                                      onClick={() =>
+                                        openImageViewModal(msg.image)
+                                      }
+                                    />
+                                  )}
+                                </p>
 
-                            <p
-                              className={`absolute ${
-                                isMe ? "right-5" : "right-2.5"
-                              } bottom-0.5 md:text-[9px] text-[8px] text-gray-300`}
-                            >
-                              {msg.time}
-                            </p>
-                            <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
-                              {isMe &&
-                                (msg.seen ? (
-                                  <i className="bi bi-check2-all text-blue-400"></i>
-                                ) : (
-                                  <i className="bi bi-check2"></i>
-                                ))}
-                            </p>
+                                <p
+                                  className={`absolute ${
+                                    isMe ? "right-5" : "right-2.5"
+                                  } bottom-0.5 md:text-[9px] text-[8px] text-gray-300`}
+                                >
+                                  {msg.time}
+                                </p>
+                                <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
+                                  {isMe &&
+                                    (msg.seen ? (
+                                      <i className="bi bi-check2-all text-blue-400"></i>
+                                    ) : (
+                                      <i className="bi bi-check2"></i>
+                                    ))}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="whitespace-pre-wrap md:text-sm text-[16px] ">
+                                  {deletedGlobally ? (
+                                    deletedGlobally_by === user.username ? (
+                                      "You deleted this message"
+                                    ) : (
+                                      "This message was deleted"
+                                    )
+                                  ) : (
+                                    <audio controls src={msg.voice} />
+                                  )}
+                                </p>
+
+                                <p
+                                  className={`absolute ${
+                                    isMe ? "right-5" : "right-2.5"
+                                  } bottom-0.5 md:text-[9px] text-[8px] text-gray-300`}
+                                >
+                                  {msg.time}
+                                </p>
+                                <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
+                                  {isMe &&
+                                    (msg.seen ? (
+                                      <i className="bi bi-check2-all text-blue-400"></i>
+                                    ) : (
+                                      <i className="bi bi-check2"></i>
+                                    ))}
+                                </p>
+                              </>
+                            )}
                           </>
-
                           // </div>
                         )}
 
@@ -1404,13 +1605,26 @@ const ChatScreen = forwardRef(
               className="w-[95%] py-2.5 px-4  text-sm rounded-xl focus:ring-0 focus:outline-none bg-gray-100 resize-none overflow-y-auto max-h-32"
               rows={1}
             />
-
-            <button
-              onClick={isEditingMsg.edit ? editMsg : sendMessage}
-              hidden={previews.length > 0}
-            >
-              <VscSend className="md:text-xl text-lg  text-[#68479D]" />
-            </button>
+            {input.length > 0 ? (
+              <button
+                onClick={isEditingMsg.edit ? editMsg : sendMessage}
+                hidden={previews.length > 0}
+              >
+                <VscSend className="md:text-xl text-lg  text-[#68479D]" />
+              </button>
+            ) : (
+              <>
+                {!recording ? (
+                  <button onClick={startRecording}>
+                    <PiMicrophoneLight className="md:text-xl" />
+                  </button>
+                ) : (
+                  <button onClick={stopRecording}>
+                    <PiMicrophoneFill className="md:text-xl" />
+                  </button>
+                )}
+              </>
+            )}
           </div>
         )}
         <ProfileView

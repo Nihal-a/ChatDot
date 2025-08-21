@@ -357,7 +357,7 @@ const Sidebar = forwardRef(
                         });
                       }}
                     >
-                      <i class="bi bi-person-fill-slash"></i>
+                      <i className="bi bi-person-fill-slash"></i>
                       <p className="text-black text-sm">Unfriend</p>
                     </div>
                   </div>

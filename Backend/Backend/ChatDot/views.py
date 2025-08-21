@@ -311,7 +311,7 @@ def get_messages(request):
         ).update(seen=True)
 
         messages = ChatMessage.objects(
-            Q(sender=sender, receiver=receiver) | Q(sender=receiver, receiver=sender),
+            MongoQ(sender=sender, receiver=receiver) | MongoQ(sender=receiver, receiver=sender),
             is_cleared_by__ne=sender  # Don't show messages cleared by this user
         ).order_by('timestamp')
 
@@ -338,8 +338,17 @@ def get_messages(request):
                     image_data_to_send = None
             else:
                 image_data_to_send = None
+
+            if msg.format == "voice":
+                try:
+                    binary_data = msg.voice.read()
+                    base64_str = base64.b64encode(binary_data).decode()
+                    voice_data_to_send = f"data:audio/wav;base64,{base64_str}"
+                except Exception as e:
+                    voice_data_to_send = None
+            else:
+                voice_data_to_send = None
             
-            print(msg.images)
 
             message_data = {
                 'id': str(msg.id),
@@ -350,6 +359,7 @@ def get_messages(request):
                 'message': msg.message or "",
                 'format': msg.format,
                 'images': image_data_to_send,
+                'voice': voice_data_to_send,
                 'datetime': local_dt.strftime("%H:%M:%S"),
                 'seen': msg.seen,
                 'is_deleted_by': msg.is_deleted_by,
