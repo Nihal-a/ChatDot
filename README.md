@@ -53,8 +53,10 @@
 - Delete for me → only you no longer see it.
 - Delete for everyone → removes the message from both sides (within time limit).
 - Edit → update the content of the message.
-- Download image → users can download images they receive
-- View image → click to open image in full view / preview mode
+- Send Image  → users can send images to otehr users.
+- Download image → users can download images they receive.
+- View image → click to open image in full view / preview mode.
+- Voice recording  → users can send voice records to other user. 
 
 ## Privacy Controls
 
@@ -65,7 +67,6 @@
 
 - Group Chats
 - More attachment options
-- Voice recording
 - Online / Offline status indicators
 - Voice & video call
 - Story/Status updates 
