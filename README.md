@@ -46,17 +46,18 @@
 - Search by username → send friend request → on accept, they become contacts.
 
 ## Chat
-- Select contact → open chat → send messages (text or image).
+- Select contact → open chat → send messages (text, image or voice).
 - Messages are pushed through WebSocket for real-time update.
 
 ## Message Actions
-- Delete for me → only you no longer see it.
-- Delete for everyone → removes the message from both sides (within time limit).
-- Edit → update the content of the message.
 - Send Image  → users can send images to otehr users.
+- Voice recording  → users can send voice records to other user.
 - Download image → users can download images they receive.
 - View image → click to open image in full view / preview mode.
-- Voice recording  → users can send voice records to other user. 
+- Edit → update the content of the message.
+- Delete for me → only you no longer see it.
+- Delete for everyone → removes the message from both sides (within time limit).
+
 
 ## Privacy Controls
 
