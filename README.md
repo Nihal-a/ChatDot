@@ -18,8 +18,9 @@
  
 ## 💬 Messaging
 - Send and receive text messages in real-time
-- Send and receive images
+- Send and receive image
 - Send and receive voice records
+- Send and receive video
 - Message status (delete for me / delete for everyone)
 - Edit message feature
 - Clear full chat / history
@@ -51,9 +52,10 @@
 
 ## Message Actions
 - Send Image  → users can send images to otehr user.
-- Voice recording  → users can send voice records to other user.
-- Download image → users can download images they receive.
-- View image → click to open image in full view / preview mode.
+- Send Video  → users can send video to otehr user.
+- Voice Recording  → users can send voice records to other user.
+- Download Image → users can download images they receive.
+- View Image → click to open image in full view / preview mode.
 - Edit → update the content of the message.
 - Delete for me → only you no longer see it.
 - Delete for everyone → removes the message from both sides (within time limit).
