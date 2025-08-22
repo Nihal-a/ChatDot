@@ -179,7 +179,11 @@ def logout_view(request):
 @api_view(['POST']) 
 @permission_classes([IsAuthenticated])
 def get_userdata(request):
-    user=request.user
+    id = request.user.id
+    user = User.objects.get(id=id)
+    
+    count=FriendRequests.objects.filter(requested_to=id).count()
+    print(count)
     res = Response({
         'user': {
         'id': user.id,
@@ -187,7 +191,7 @@ def get_userdata(request):
         'email': user.email,
         'name': user.fullname,
         'about': user.about,
-        'notfication_count':FriendRequests.objects.filter(requested_to=user.username).count(),
+        'notfication_count':count,
         'profile': user.profile.url if user.profile  else None
         }
     }, status=status.HTTP_200_OK)
@@ -318,6 +322,7 @@ def get_messages(request):
         grouped = defaultdict(list)
 
         for msg in messages:
+            
             dt = msg.timestamp
             if is_naive(dt):
                 dt = make_aware(dt)
@@ -348,7 +353,16 @@ def get_messages(request):
                     voice_data_to_send = None
             else:
                 voice_data_to_send = None
-            
+            if msg.format == "video":
+                try:
+                    binary_data = msg.video.read()
+                    base64_str = base64.b64encode(binary_data).decode()
+                    video_data_to_send = f"data:video/mp4;base64,{base64_str}"
+                except Exception as e:
+                    video_data_to_send = None
+            else:
+                video_data_to_send = None
+
 
             message_data = {
                 'id': str(msg.id),
@@ -360,6 +374,7 @@ def get_messages(request):
                 'format': msg.format,
                 'images': image_data_to_send,
                 'voice': voice_data_to_send,
+                'video': video_data_to_send,
                 'datetime': local_dt.strftime("%H:%M:%S"),
                 'seen': msg.seen,
                 'is_deleted_by': msg.is_deleted_by,

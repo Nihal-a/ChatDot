@@ -84,7 +84,7 @@ const Signin = () => {
             className="hidden  w-full h-full md:flex flex-col items-center justify-center border-2 bg-amber-200
            md:rounded-l-xl  border-amber-200 "
           >
-            <p>Color fill</p>
+            {/* <p>Color fill</p> */}
           </div>
           <div className="h-full w-full md:col-span-2 flex items-center justify-center">
             <div className="w-full h-full p-5 flex flex-col items-center justify-center border-2 md:rounded-r-xl border-amber-200">

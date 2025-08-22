@@ -49,7 +49,7 @@ const ChatScreen = forwardRef(
     const [showImageViewModal, setshowImageViewModal] = useState(false);
     const [recording, setRecording] = useState(false);
     const [audioUrl, setAudioUrl] = useState(null);
-    const [showImageUrl, setshowImageUrl] = useState(null);
+    const [showImageUrl, setshowImageUrl] = useState({});
     const [selectedMsgId, setSelectedMsgId] = useState(null);
     const [ModalMsg, setModalMsg] = useState(null);
     const [deleteType, setDeleteType] = useState(null);
@@ -57,6 +57,8 @@ const ChatScreen = forwardRef(
     const [files, setFiles] = useState([]);
     const [previews, setPreviews] = useState([]);
     const [CurrentIndex, setCurrentIndex] = useState(0);
+    const [sendingFileType, setsendingFileType] = useState(null);
+    const [attachmentMenu, setattachmentMenu] = useState(false);
     const [msgAlterOptions, setmsgAlterOptions] = useState({
       msg_id: null,
       alterPermissible: true,
@@ -75,7 +77,9 @@ const ChatScreen = forwardRef(
 
     const dropdownRef = useRef(null);
     const msgalterdropdownRef = useRef(null);
-    const fileInputRef = useRef(null);
+    const imageFileInputRef = useRef(null);
+    const videoFileInputRef = useRef(null);
+    const attachmentMenuRef = useRef(null);
     const socketRef = useRef(null);
     const messageEndRef = useRef(null);
     const prevUserRef = useRef(null);
@@ -264,10 +268,42 @@ const ChatScreen = forwardRef(
       setFiles([]);
     };
 
-    const openImageViewModal = (imgurl) => {
-      setshowImageUrl(imgurl);
+    const sendVideo = () => {
+      if (!socketRef) {
+        console.log("Socket not ready!");
+        return;
+      }
+
+      files.forEach((file) => {
+        const reader = new FileReader();
+
+        reader.onload = () => {
+          const base64data = reader.result;
+          console.log("Sending", file.name, "length:", base64data.length);
+
+          socketRef.current.send(
+            JSON.stringify({
+              type: "video",
+              sender: user.username,
+              rec: selectedUser.username,
+              filename: file.name,
+              video: base64data,
+            })
+          );
+        };
+
+        reader.readAsDataURL(file);
+      });
+
+      setPreviews([]);
+      setFiles([]);
+    };
+
+    const openImageViewModal = (imgurl, format) => {
+      setshowImageUrl({ url: imgurl, format: format });
       setshowImageViewModal(true);
     };
+
     const openDeleteModal = (msgId, type) => {
       console.log(type);
       setModalMsg(type);
@@ -396,27 +432,49 @@ const ChatScreen = forwardRef(
       }
     };
 
-    const triggerFileInput = () => {
-      fileInputRef.current.click();
+    const triggerImageFileInput = () => {
+      setsendingFileType("image");
+      imageFileInputRef.current.click();
+    };
+    const triggerVideoFileInput = () => {
+      setsendingFileType("video");
+      videoFileInputRef.current.click();
     };
 
     const handleFileChange = (e) => {
       const selectedFiles = Array.from(e.target.files);
 
-      const newPreviews = selectedFiles.map((file) => ({
-        file: file,
-        url: URL.createObjectURL(file),
-      }));
+      if (sendingFileType === "image") {
+        const newPreviews = selectedFiles.map((file) => ({
+          file: file,
+          url: URL.createObjectURL(file), // preview for image
+          type: "image",
+        }));
 
-      setFiles((prev) => {
-        const updated = [...prev, ...selectedFiles];
-        setCurrentIndex(updated.length - 1);
-        return updated;
-      });
+        setFiles((prev) => {
+          const updated = [...prev, ...selectedFiles];
+          setCurrentIndex(updated.length - 1);
+          return updated;
+        });
 
-      setPreviews((prev) => [...prev, ...newPreviews]);
+        setPreviews((prev) => [...prev, ...newPreviews]);
+        setmainPreviewImage(URL.createObjectURL(selectedFiles[0]));
+      } else if (sendingFileType === "video") {
+        const newPreviews = selectedFiles.map((file) => ({
+          file: file,
+          url: URL.createObjectURL(file),
+          type: "video",
+        }));
 
-      setmainPreviewImage(URL.createObjectURL(selectedFiles[0]));
+        setFiles((prev) => {
+          const updated = [...prev, ...selectedFiles];
+          setCurrentIndex(updated.length - 1);
+          return updated;
+        });
+
+        setPreviews((prev) => [...prev, ...newPreviews]);
+        setmainPreviewImage(URL.createObjectURL(selectedFiles[0]));
+      }
     };
 
     const removeImage = () => {
@@ -480,7 +538,15 @@ const ChatScreen = forwardRef(
         ) {
           setmsgalterdropdown(false);
         }
+        if (
+          attachmentMenu &&
+          attachmentMenuRef.current &&
+          !attachmentMenuRef.current.contains(e.target)
+        ) {
+          setattachmentMenu(false);
+        }
       }
+
       document.addEventListener("mousedown", handleClickOutside);
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
@@ -871,6 +937,101 @@ const ChatScreen = forwardRef(
           }
         }
 
+        if (data.type === "video" || !data.type) {
+          console.log("📨 Processing new message:", data);
+
+          if (!data.datetime || !data.sender || !data.video) {
+            console.error("❌ Invalid message data:", data);
+            return;
+          }
+
+          const msgDate = new Date(data.datetime);
+          const formattedDate = format(msgDate, "dd MMMM yyyy");
+          const formattedTime = format(msgDate, "hh:mm a");
+
+          const newMessage = {
+            id: data.id || Date.now(),
+            is_deleted_by: null,
+            is_bothdeleted: false,
+            is_bothdeleted_by: false,
+            sender: data.sender,
+            receiver:
+              data.receiver ||
+              (data.sender === user.username
+                ? selectedUser.username
+                : user.username),
+            message: "",
+            image: data.images,
+            video: data.video,
+            format: data.format,
+            time: formattedTime,
+            seen: data.seen || false,
+            is_edited: false,
+            is_ghost: data.is_ghost || false,
+          };
+          console.log("📨 New message to add:", newMessage);
+          setmessages((prevMessages) => {
+            console.log("📚 Previous messages:", prevMessages);
+
+            let groupKey;
+            if (isToday(msgDate)) {
+              groupKey = "Today";
+            } else if (isYesterday(msgDate)) {
+              groupKey = "Yesterday";
+            } else {
+              groupKey = formattedDate;
+            }
+
+            const updatedMessages = { ...prevMessages };
+
+            if (updatedMessages[groupKey]) {
+              const messageExists = updatedMessages[groupKey].some(
+                (msg) => msg.id === newMessage.id
+              );
+
+              if (!messageExists) {
+                updatedMessages[groupKey] = [
+                  ...updatedMessages[groupKey],
+                  newMessage,
+                ];
+              }
+            } else {
+              updatedMessages[groupKey] = [newMessage];
+            }
+
+            console.log("✅ Updated messages:", updatedMessages);
+            setTimeout(() => scrollToBottom(), 0);
+            return updatedMessages;
+          });
+
+          if (
+            data.sender === selectedUser.username &&
+            (data.receiver === user.username || !data.receiver) &&
+            !data.is_ghost &&
+            !selectedUser.is_blocked_by?.includes(data.sender)
+          ) {
+            console.log(
+              "👀 Auto-sending seen notification for message from",
+              data.sender
+            );
+
+            setTimeout(() => {
+              if (
+                socketRef.current &&
+                socketRef.current.readyState === WebSocket.OPEN
+              ) {
+                socketRef.current.send(
+                  JSON.stringify({
+                    type: "seen",
+                    sender: user.username,
+                    receiver: data.sender,
+                  })
+                );
+              }
+            }, 100);
+          }
+        }
+
         if (data.type === "voice" || !data.type) {
           console.log("📨 Processing new message:", data);
 
@@ -1072,6 +1233,7 @@ const ChatScreen = forwardRef(
                   format: msg.format,
                   image: msg.images,
                   voice: msg.voice,
+                  video: msg.video,
                 };
               });
             }
@@ -1096,6 +1258,8 @@ const ChatScreen = forwardRef(
 
       if (selectedUser && selectedUser.username !== prevUserRef.current) {
         fetchMessages();
+        setattachmentMenu(false);
+        setPreviews([]);
         prevUserRef.current = selectedUser.username;
       }
     }, [selectedUser, user.username, scrollToBottom]);
@@ -1103,11 +1267,16 @@ const ChatScreen = forwardRef(
     useEffect(() => {
       scrollToBottom();
     }, [messages, scrollToBottom]);
+    useEffect(() => {
+      return () => {};
+    }, []);
 
     useEffect(() => {
       const handleEsc = (e) => {
         if (e.key === "Escape") {
           onClose();
+          setattachmentMenu(false);
+          setshowImageViewModal(false);
         }
       };
 
@@ -1118,7 +1287,14 @@ const ChatScreen = forwardRef(
     if (!selectedUser) {
       return (
         <>
-          <div className="h-[8%] flex items-center justify-end px-4 py-2 gap-4 bg-white border-b border-gray-200">
+          <div className="relative h-[8%] flex items-center justify-end px-4 py-2 gap-4 bg-white border-b border-gray-200">
+            {user.notfication_count > 0 && (
+              <div className="md:w-[15px] md:h-[15px] absolute rounded-full p-1 top-1.5 right-16.5 ring-1 z-10 bg-white ring-green-700 flex items-center justify-center">
+                <p className="text-[10px] font-normal font-[inter]">
+                  {user.notfication_count}
+                </p>
+              </div>
+            )}
             <div
               className={`relative w-[40px] h-[40px] rounded-full bg-white  ${
                 user.notfication_count > 0
@@ -1250,17 +1426,11 @@ const ChatScreen = forwardRef(
               const visibleMsgs = msgs.filter((msg) => {
                 const deletedForMe = msg.is_deleted_by?.includes(user.username);
                 const is_clearmsg = msg.is_cleared_by?.includes(user.username);
+                console.log(is_clearmsg);
                 return !deletedForMe && !is_clearmsg;
               });
 
-              // const textMsgs = visibleMsgs.filter(
-              //   (msg) => msg.format === "text"
-              // );
-
-              const textMsgs = 4;
-
-              if (visibleMsgs.length === 0 || textMsgs.length === 0)
-                return null;
+              if (visibleMsgs.length === 0) return null;
 
               return (
                 <div key={date}>
@@ -1276,8 +1446,6 @@ const ChatScreen = forwardRef(
                     const format = msg.format;
 
                     return (
-                      // <>
-                      //   {format == "text" && (
                       <div
                         id={`msg-${msg.id}`}
                         key={`${msg.id}-${index}`}
@@ -1285,6 +1453,8 @@ const ChatScreen = forwardRef(
                           format == "image"
                             ? " pb-0.5 py-1"
                             : format == "voice"
+                            ? " pb-0.5"
+                            : format == "video"
                             ? " pb-0.5"
                             : "md:min-w-[12%] min-w-[25%] md:max-w-[70%] max-w-[80%] wrap-break-word  py-1"
                         }   rounded-lg mb-1 ${
@@ -1294,6 +1464,8 @@ const ChatScreen = forwardRef(
                                   ? "bg-[#68479D] text-white self-end ml-auto group px-2 pb-3.5"
                                   : msg.format == "image" || deletedGlobally
                                   ? "bg-transparent text-white self-end ml-auto group"
+                                  : msg.format == "video" || deletedGlobally
+                                  ? "bg-transparent text-white self-end ml-auto group"
                                   : "bg-transparent text-white self-end ml-auto group  mb-1"
                               }`
                             : `${
@@ -1301,6 +1473,8 @@ const ChatScreen = forwardRef(
                                   ? "bg-white text-black self-start  group px-2 pb-3.5"
                                   : msg.format == "image" || deletedGlobally
                                   ? "bg-white text-black self-start  group px-2 pb-3.5  "
+                                  : msg.format == "video" || deletedGlobally
+                                  ? "bg-white text-black self-start  group px-2 pb-3.5 "
                                   : "bg-transparent text-white self-start group pb-3.5"
                               }`
                         }`}
@@ -1339,7 +1513,6 @@ const ChatScreen = forwardRef(
                         ) : (
                           <>
                             {msg.format === "image" ? (
-                              // <div className="min-w-full min-h-full overflow-hidden p-3 flex items-center justify-center ">
                               <>
                                 <p className="whitespace-pre-wrap md:text-sm text-[16px] ">
                                   {deletedGlobally ? (
@@ -1352,9 +1525,9 @@ const ChatScreen = forwardRef(
                                     <img
                                       src={msg.image}
                                       alt=""
-                                      className="max-w-[200px] max-h-[300px] object-contain rounded-lg ring-1"
+                                      className="max-w-[200px] max-h-[300px] object-contain rounded-lg ring-1 cursor-pointer"
                                       onClick={() =>
-                                        openImageViewModal(msg.image)
+                                        openImageViewModal(msg.image, "image")
                                       }
                                     />
                                   )}
@@ -1367,6 +1540,7 @@ const ChatScreen = forwardRef(
                                 >
                                   {msg.time}
                                 </p>
+
                                 <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
                                   {isMe &&
                                     (msg.seen ? (
@@ -1376,7 +1550,7 @@ const ChatScreen = forwardRef(
                                     ))}
                                 </p>
                               </>
-                            ) : (
+                            ) : msg.format === "video" ? (
                               <>
                                 <p className="whitespace-pre-wrap md:text-sm text-[16px] ">
                                   {deletedGlobally ? (
@@ -1386,7 +1560,23 @@ const ChatScreen = forwardRef(
                                       "This message was deleted"
                                     )
                                   ) : (
-                                    <audio controls src={msg.voice} />
+                                    <>
+                                      {" "}
+                                      <video
+                                        // controls
+                                        src={msg.video}
+                                        className="relative max-w-[250px] max-h-[300px] rounded-lg cursor-pointer"
+                                        onClick={() =>
+                                          openImageViewModal(msg.video, "video")
+                                        }
+                                      />
+                                      <i
+                                        className="bi bi-play-circle text-white text-5xl absolute inset-0 flex items-center justify-center cursor-pointer"
+                                        onClick={() =>
+                                          openImageViewModal(msg.video, "video")
+                                        }
+                                      ></i>
+                                    </>
                                   )}
                                 </p>
 
@@ -1397,6 +1587,7 @@ const ChatScreen = forwardRef(
                                 >
                                   {msg.time}
                                 </p>
+
                                 <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
                                   {isMe &&
                                     (msg.seen ? (
@@ -1406,9 +1597,43 @@ const ChatScreen = forwardRef(
                                     ))}
                                 </p>
                               </>
-                            )}
+                            ) : msg.format === "voice" ? (
+                              <>
+                                <p className="whitespace-pre-wrap md:text-sm text-[16px] ">
+                                  {deletedGlobally ? (
+                                    deletedGlobally_by === user.username ? (
+                                      "You deleted this message"
+                                    ) : (
+                                      "This message was deleted"
+                                    )
+                                  ) : (
+                                    <audio
+                                      controls
+                                      src={msg.voice}
+                                      className="max-w-[250px] rounded-lg"
+                                    />
+                                  )}
+                                </p>
+
+                                <p
+                                  className={`absolute ${
+                                    isMe ? "right-5" : "right-2.5"
+                                  } bottom-0.5 md:text-[9px] text-[8px] text-gray-300`}
+                                >
+                                  {msg.time}
+                                </p>
+
+                                <p className="absolute right-1.5 bottom-0 text-[10px] text-gray-300">
+                                  {isMe &&
+                                    (msg.seen ? (
+                                      <i className="bi bi-check2-all text-blue-400"></i>
+                                    ) : (
+                                      <i className="bi bi-check2"></i>
+                                    ))}
+                                </p>
+                              </>
+                            ) : null}
                           </>
-                          // </div>
                         )}
 
                         {!deletedGlobally && (
@@ -1482,7 +1707,7 @@ const ChatScreen = forwardRef(
                                     !deletedGlobally && (
                                       <a href={msg.image} download="image.jpg">
                                         <div className="w-full flex gap-2 items-center text-black pb-1 py-1 cursor-pointer">
-                                          <i class="bi bi-download text-sm"></i>
+                                          <i className="bi bi-download text-sm"></i>
                                           <p className="text-black text-sm">
                                             Download
                                           </p>
@@ -1525,8 +1750,44 @@ const ChatScreen = forwardRef(
           <div className="relative h-[8%] flex items-center justify-between px-4 py-3 bg-white border-t rounded-t-xl border-gray-200 max-h-32">
             <i
               className="bi bi-plus text-2xl"
-              onClick={() => triggerFileInput()}
+              onClick={() => setattachmentMenu(!attachmentMenu)}
             ></i>
+            {attachmentMenu ? (
+              <div
+                className="absolute bottom-15 left-1 w-[8%] h-[100px] shadow-xl ring-1 ring-gray-300 rounded-md p-3 flex flex-col items-start gap-2 "
+                ref={attachmentMenuRef}
+              >
+                <div
+                  className="w-full h-[25%]  flex  items-center justify-start gap-1 cursor-pointer"
+                  onClick={() => {
+                    triggerImageFileInput(), setattachmentMenu(false);
+                  }}
+                >
+                  <i className="bi bi-image"></i>
+                  <p className="text-sm font-[inter] ">Photos </p>
+                </div>
+
+                <div
+                  className="w-full h-[25%]  flex items-center justify-start gap-1 cursor-pointer"
+                  onClick={() => {
+                    triggerVideoFileInput(), setattachmentMenu(false);
+                  }}
+                >
+                  <i className="bi bi-file-earmark-play-fill"></i>
+                  <p className="text-sm font-[inter] ">Videos </p>
+                </div>
+
+                {/* <div
+                className="w-full h-[25%]  flex items-center justify-start gap-1 cursor-pointer"
+                onClick={() => triggerImageFileInput()}
+              >
+                <i className="bi bi-file-earmark"></i>
+                <p className="text-sm font-[inter] ">Document</p>
+              </div> */}
+              </div>
+            ) : (
+              ""
+            )}
 
             {previews.length > 0 &&
               previews.map((file, index) => (
@@ -1534,51 +1795,76 @@ const ChatScreen = forwardRef(
                   key={file.url}
                   className="absolute bottom-3.5 left-2 md:h-[550px] h-[200px] md:w-[600px] w-[250px] bg-[#e9e9e9] flex flex-col mt-4 shadow-lg z-20 rounded-md"
                 >
-                  <div className="w-full h-[8%] px-1  flex items-center justify-between border-b border-gray-300 shadow-sm">
+                  {/* Top Bar */}
+                  <div className="w-full h-[8%] px-1 flex items-center justify-between border-b border-gray-300 shadow-sm">
                     <div></div>
                     <i
-                      className="bi bi-trash md:text-2xl text-xs p-1.5 md:bg-white rounded-sm  "
+                      className="bi bi-trash md:text-2xl text-xs p-1.5 md:bg-white rounded-sm"
                       onClick={() => removeImage()}
                     ></i>
                     <i
                       className="bi bi-x md:text-2xl text-sm md:bg-white rounded-sm font-medium"
-                      onClick={() => {
-                        setPreviews([]);
-                      }}
+                      onClick={() => setPreviews([])}
                     ></i>
                   </div>
-                  <div className="w-full h-[82%] py-1">
-                    <img
-                      src={mainPreviewImage}
-                      alt=""
-                      className="w-full h-full object-scale-down object-center"
-                    />
-                  </div>
+
+                  {/* Main Preview */}
+                  {file.type === "image" ? (
+                    <div className="w-full h-[82%] py-1">
+                      <img
+                        src={mainPreviewImage}
+                        alt=""
+                        className="w-full h-full object-scale-down object-center"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-[82%] py-1">
+                      <video
+                        src={mainPreviewImage}
+                        controls
+                        className="w-full h-full object-scale-down object-center"
+                      />
+                    </div>
+                  )}
+
+                  {/* Bottom bar with thumbnails + send */}
                   <div className="w-full h-[10%] px-1 flex items-center justify-between border-t border-gray-300 shadow-sm">
-                    {/* <i
-                      className="bi bi-plus text-2xl"
-                      onClick={() => triggerFileInput()}
-                    ></i> */}
                     <div className="w-[90%] h-full flex items-center justify-center py-1 ">
                       {previews.length > 1 &&
-                        previews.map((file, index) => (
+                        previews.map((thumb, thumbIndex) => (
                           <div
-                            key={file.url}
-                            className="max-w-[45px] h-full mr-1"
+                            key={thumb.url}
+                            className="max-w-[45px] h-full mr-1 cursor-pointer"
                             onClick={() => {
-                              setmainPreviewImage(file.url);
-                              setCurrentIndex(index);
+                              setmainPreviewImage(thumb.url);
+                              setCurrentIndex(thumbIndex);
                             }}
                           >
-                            <img
-                              src={file.url}
-                              alt=""
-                              className="w-full h-full object-cover object-center"
-                            />
+                            {thumb.type === "image" ? (
+                              <img
+                                src={thumb.url}
+                                alt=""
+                                className="w-full h-full object-cover object-center"
+                              />
+                            ) : (
+                              <video
+                                src={thumb.url}
+                                className="w-full h-full object-cover object-center"
+                              />
+                            )}
                           </div>
                         ))}
                     </div>
-                    <button onClick={sendImage}>
+
+                    <button
+                      onClick={() => {
+                        sendingFileType === "image"
+                          ? sendImage()
+                          : sendingFileType === "document"
+                          ? sendDocument()
+                          : sendVideo();
+                      }}
+                    >
                       <VscSend className="md:text-xl text-sm text-[#68479D]" />
                     </button>
                   </div>
@@ -1589,7 +1875,15 @@ const ChatScreen = forwardRef(
               type="file"
               accept="image/*"
               multiple={false}
-              ref={fileInputRef}
+              ref={imageFileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <input
+              type="file"
+              accept="video/*"
+              multiple={false}
+              ref={videoFileInputRef}
               onChange={handleFileChange}
               className="hidden"
             />
@@ -1605,23 +1899,27 @@ const ChatScreen = forwardRef(
               className="w-[95%] py-2.5 px-4  text-sm rounded-xl focus:ring-0 focus:outline-none bg-gray-100 resize-none overflow-y-auto max-h-32"
               rows={1}
             />
-            {input.length > 0 ? (
-              <button
-                onClick={isEditingMsg.edit ? editMsg : sendMessage}
-                hidden={previews.length > 0}
-              >
-                <VscSend className="md:text-xl text-lg  text-[#68479D]" />
-              </button>
-            ) : (
+            {!files.length > 0 && (
               <>
-                {!recording ? (
-                  <button onClick={startRecording}>
-                    <PiMicrophoneLight className="md:text-xl" />
+                {input.length > 0 ? (
+                  <button
+                    onClick={isEditingMsg.edit ? editMsg : sendMessage}
+                    hidden={previews.length > 0}
+                  >
+                    <VscSend className="md:text-xl text-lg  text-[#68479D]" />
                   </button>
                 ) : (
-                  <button onClick={stopRecording}>
-                    <PiMicrophoneFill className="md:text-xl" />
-                  </button>
+                  <>
+                    {!recording ? (
+                      <button onClick={startRecording}>
+                        <PiMicrophoneLight className="md:text-xl" />
+                      </button>
+                    ) : (
+                      <button onClick={stopRecording}>
+                        <PiMicrophoneFill className="md:text-xl" />
+                      </button>
+                    )}
+                  </>
                 )}
               </>
             )}

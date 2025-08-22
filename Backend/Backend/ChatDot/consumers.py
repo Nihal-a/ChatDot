@@ -7,7 +7,7 @@ from channels.db import sync_to_async
 from .mongodb import *
 from datetime import datetime,timedelta
 from bson import ObjectId 
-from django.db.models import Q
+# from django.db.models import Q
 from mongoengine.queryset.visitor import Q
 from django.utils.timezone import localtime
 import base64
@@ -157,6 +157,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             elif msg_type == "images":
                 await self.handle_images(data)
                 
+            elif msg_type == "video":
+                await self.handle_video(data)
+
             elif msg_type == "voice":
                 await self.handle_voice(data)
 
@@ -169,12 +172,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         clear_time_str = data.get("time")
         username = data.get("user")
         friend = data.get("to")
+        print(friend, username, clear_time_str)
 
         if not clear_time_str or not username or not friend:
             print("Missing required fields")
             return
 
-        # Parse the ISO string properly
         try:
             clear_time = datetime.fromisoformat(clear_time_str.replace("Z", "+00:00"))
 
@@ -182,38 +185,30 @@ class ChatConsumer(AsyncWebsocketConsumer):
             print("Parsed clear_time:", clear_time)
         except Exception as e:
             print("Time parse error:", e)
-            clear_time = datetime.utcnow()  # Fallback to current time
-        
-        # Update messages - mark them as cleared by this user
-        # Remove the user from is_cleared_by first, then add them back
-        # This ensures the clear action works even if previously cleared
+            clear_time = datetime.utcnow()  
         result = ChatMessage.objects(
             Q(sender=username, receiver=friend) | Q(sender=friend, receiver=username),
-            timestamp__lte=clear_time
+            # timestamp__lte=clear_time
         ).update(
-            pull__is_cleared_by=username,  # Remove if exists
-            set__is_cleared_by_time=clear_time  # Set clear time
+            pull__is_cleared_by=username,  
+            set__is_cleared_by_time=clear_time 
         )
         
-        # Then add the user to cleared by list
         result2 = ChatMessage.objects(
             Q(sender=username, receiver=friend) | Q(sender=friend, receiver=username),
-            timestamp__lte=clear_time
+            # timestamp__lte=clear_time
         ).update(push__is_cleared_by=username)
         
-        print(f"Step 1 - Removed user from {result} messages")
-        print(f"Step 2 - Added user to {result2} messages")
-
-        print(f"Step 1 - Removed user from {result} messages")
-        print(f"Step 2 - Added user to {result2} messages")
+        # print(f"Step 1 - Removed user from {result} messages")
+        # print(f"Step 2 - Added user to {result2} messages")
+        # print(f"Step 1 - Removed user from {result} messages")
+        # print(f"Step 2 - Added user to {result2} messages")
         print(f"Total cleared messages for {username} before {clear_time}")
 
-        # Update connections - clear last message info
         Connections.objects(
             Q(me=username, my_friend=friend) | Q(me=friend, my_friend=username)
         ).update(set__last_message=None, set__last_message_time=None)
 
-        # Broadcast the clear chat event
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -506,8 +501,84 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'format':'image'
             }
         )
-
     
+
+    async def handle_video(self, data):
+        base64_data = data['video']
+        filename = data.get('filename', f"video_{datetime.now().timestamp()}.mp4")
+        receiver = data['rec']
+        current_time = datetime.now()
+
+        format, b64str = base64_data.split(';base64,')
+        ext = format.split('/')[-1]  
+        video_content = ContentFile(base64.b64decode(b64str), name=filename)
+
+        connection_status = await self.check_connection_and_block_status(self.user.username, receiver)
+        if not connection_status['exists']:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'No connection exists with this user'
+            }))
+            return
+
+        if connection_status['is_blocked']:
+            if self.user.username in connection_status['blocked_by']:
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': 'You have blocked this user. Unblock to send messages.'
+                }))
+                return
+            elif receiver in connection_status['blocked_by']:
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': 'You cannot send messages to this user.'
+                }))
+                return
+
+        connection = connection_status['connection']
+        if connection:
+            connection.last_message = " video"
+            connection.last_message_time = current_time
+            await sync_to_async(connection.save)()
+
+        chat_message = ChatMessage(
+            sender=self.user.username,
+            receiver=receiver,
+            video=video_content,
+            format="video",
+            timestamp=current_time,
+            seen=False
+        )
+        await sync_to_async(chat_message.save)()
+
+        receiver_room_name = self.room_name
+        is_receiver_active = self.is_user_in_active_chat(receiver, receiver_room_name)
+
+        if is_receiver_active:
+            await sync_to_async(chat_message.update)(seen=True)
+
+        await self.send_sidebar_update(
+            receiver_username=receiver,
+            sender_username=self.user.username,
+            message="video",
+            timestamp=current_time,
+            is_receiver_active=is_receiver_active
+        )
+
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'chat_video',  
+                'id': str(chat_message.id),
+                'sender': self.user.username,
+                'video': base64_data,  
+                'filename': filename,
+                'receiver': receiver,
+                'datetime': current_time.isoformat(),
+                'seen': is_receiver_active,
+                'format': 'video'
+            }
+        )
 
     async def handle_voice(self, data):
         base64_data = data['audio']
@@ -665,6 +736,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
         }))
 
+
+    async def chat_video(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'video',
+            'id': event['id'],
+            'sender': event['sender'],
+            'receiver': event['receiver'],
+            'format': event['format'],
+            'video': event['video'],
+            'datetime': event['datetime'],
+            'seen': event.get('seen', False),
+            
+        }))
 
     async def chat_voice(self, event):
         await self.send(text_data=json.dumps({

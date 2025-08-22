@@ -7,11 +7,19 @@ const ImageViewModal = ({ isOpen, onClose, imgurl }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent bg-opacity-40 backdrop-blur-sm transition-opacity">
       <div className="bg-white rounded-2xl p-6 w-[90%] max-w-sm shadow-2xl animate-fade-in animate-fade-out">
         <div className="flex flex-col items-center justify-center gap-4">
-          <img
-            src={imgurl}
-            alt=""
-            className="max-w-[350px] max-h-[450px] object-cover rounded-lg "
-          />
+          {imgurl.format === "image" ? (
+            <img
+              src={imgurl.url}
+              alt=""
+              className="max-w-[350px] max-h-[450px] object-cover rounded-lg "
+            />
+          ) : (
+            <video
+              src={imgurl.url}
+              controls
+              className="max-w-[350px] max-h-[450px] object-cover rounded-lg "
+            />
+          )}
           <div className="flex gap-5">
             <button
               onClick={onClose}
@@ -20,8 +28,8 @@ const ImageViewModal = ({ isOpen, onClose, imgurl }) => {
               Close
             </button>
             <a
-              href={imgurl}
-              download="image.jpg"
+              href={imgurl.url}
+              download={imgurl.format === "image" ? "image.jpg" : "video.mp4"}
               className="px-4 py-1.5 rounded-lg bg-[#68479D] text-white hover:bg-[#7953b6] transition"
             >
               <i class="bi bi-download text-sm pr-3"></i>

@@ -46,14 +46,40 @@ const Sidebar = forwardRef(
 
     const handleClearChat = (chatuser) => {
       onClearChat(chatuser.username);
+      const userdetails = allusers.find(
+        (item) => item.username === chatuser.username
+      );
+      console.log(userdetails);
+      if (userdetails) {
+        userdetails.last_message = "";
+        userdetails.last_message_time = "";
+        userdetails.unseen_count = 0;
+        userdetails.formattedTime = "";
+      }
     };
 
-    const handleselectedUser = (user) => {
-      onselectUser(user);
-      setisSelected(user.name);
+    const handleselectedUser = (u) => {
+      const userdetails = allusers.find((item) => item.username === u.username);
+      const selectedUser = userdetails || u;
+
+      // Ensure we have all required properties
+      const completeUser = {
+        ...selectedUser,
+        username: selectedUser.username,
+        name: selectedUser.name || selectedUser.username,
+        id: selectedUser.id || selectedUser.username,
+        last_message: selectedUser.last_message || "",
+        last_message_time: selectedUser.last_message_time || "",
+        unseen_count: 0, // Reset unseen count when selected
+      };
+
+      onselectUser(completeUser);
+      setisSelected(u.username);
     };
 
-    useImperativeHandle(ref, () => fetchUsers);
+    useImperativeHandle(ref, () => ({
+      fetchUsers,
+    }));
 
     const fetchUsers = async () => {
       try {
@@ -87,34 +113,41 @@ const Sidebar = forwardRef(
     };
 
     const formatUserList = (users) => {
-      return users.map((user) => {
+      return users.map((u) => {
         let formattedTime = "";
-        if (user.last_message_time) {
-          const msgDate = new Date(user.last_message_time);
-          const now = new Date();
+        if (u.last_message_time) {
+          try {
+            const msgDate = new Date(u.last_message_time);
+            if (!isNaN(msgDate.getTime())) {
+              // Check if date is valid
+              const now = new Date();
+              const isToday =
+                msgDate.getDate() === now.getDate() &&
+                msgDate.getMonth() === now.getMonth() &&
+                msgDate.getFullYear() === now.getFullYear();
 
-          const isToday =
-            msgDate.getDate() === now.getDate() &&
-            msgDate.getMonth() === now.getMonth() &&
-            msgDate.getFullYear() === now.getFullYear();
-
-          formattedTime = isToday
-            ? format(msgDate, "hh:mm a")
-            : format(msgDate, "dd MMM");
+              formattedTime = isToday
+                ? format(msgDate, "hh:mm a")
+                : format(msgDate, "dd MMM");
+            }
+          } catch (error) {
+            console.error("Error formatting date:", error, u.last_message_time);
+          }
         }
 
         return {
-          ...user,
+          ...u,
           formattedTime,
+          last_message: u.last_message || "",
+          unseen_count: u.unseen_count || 0,
+          id: u.id || u.username,
         };
       });
     };
 
-    // Handle latestMsg updates
-
-    const handleShowProfile = (e, user) => {
+    const handleShowProfile = (e, u) => {
       e.stopPropagation();
-      setProfileUser(user);
+      setProfileUser(u);
       setshowProfileView(true);
       setisOptionMenu({
         open: false,
@@ -123,31 +156,29 @@ const Sidebar = forwardRef(
       });
     };
 
-    // Handle profile modal closing
     const handleCloseProfile = () => {
-      console.log("Closing profile modal");
       setshowProfileView(false);
       setProfileUser(null);
     };
 
     const filteredUsers = allusers.filter(
-      (user) =>
-        user.username.toLowerCase().includes(search.toLowerCase()) ||
-        user.name.toLowerCase().includes(search.toLowerCase())
+      (u) =>
+        u.username.toLowerCase().includes(search.toLowerCase()) ||
+        u.name?.toLowerCase().includes(search.toLowerCase())
     );
 
-    const handleOptionMenu = async (e, user) => {
+    const handleOptionMenu = async (e, u) => {
       e.preventDefault();
       e.stopPropagation();
       setisOptionMenu((prev) => ({
         ...prev,
         open: true,
-        userid: user.id,
-        user: user,
+        userid: u.id,
+        user: u,
       }));
 
       setTimeout(() => {
-        const userElement = document.getElementById(`user-${user.id}`);
+        const userElement = document.getElementById(`user-${u.id}`);
         if (userElement) {
           const rect = userElement.getBoundingClientRect();
           const screenHeight = window.innerHeight;
@@ -194,19 +225,53 @@ const Sidebar = forwardRef(
         let updatedList = [...prevList];
 
         latestMsg.forEach((newItem) => {
-          const existingIndex = updatedList.findIndex(
-            (item) => item.username === newItem.username
+          const idx = updatedList.findIndex(
+            (it) => it.username === newItem.username
           );
 
-          const enhancedItem = formatUserList([newItem])[0];
-
-          if (existingIndex !== -1) {
-            updatedList[existingIndex] = {
-              ...updatedList[existingIndex],
-              ...enhancedItem,
+          if (idx !== -1) {
+            // Update existing user
+            const existingUser = updatedList[idx];
+            const updatedUser = {
+              ...existingUser,
+              last_message:
+                newItem.last_message || existingUser.last_message || "",
+              last_message_time:
+                newItem.last_message_time ||
+                existingUser.last_message_time ||
+                "",
+              unseen_count:
+                newItem.unseen_count !== undefined
+                  ? newItem.unseen_count
+                  : existingUser.unseen_count || 0,
             };
+
+            const formattedUser = formatUserList([updatedUser])[0];
+            updatedList[idx] = formattedUser;
+
+            if (
+              newItem.last_message &&
+              newItem.last_message !== existingUser.last_message
+            ) {
+              const [moved] = updatedList.splice(idx, 1);
+              updatedList.unshift(moved);
+            }
           } else {
-            updatedList.unshift(enhancedItem);
+            if (newItem.username) {
+              const newUser = {
+                username: newItem.username,
+                name: newItem.name || newItem.username,
+                id: newItem.id || newItem.username,
+                last_message: newItem.last_message || "",
+                last_message_time: newItem.last_message_time || "",
+                unseen_count: newItem.unseen_count || 0,
+                profile: newItem.profile || null,
+                is_blocked_by: newItem.is_blocked_by || [],
+              };
+
+              const formattedUser = formatUserList([newUser])[0];
+              updatedList.unshift(formattedUser);
+            }
           }
         });
 
@@ -244,16 +309,16 @@ const Sidebar = forwardRef(
           {filteredUsers.map((chatuser) => (
             <div
               id={`user-${chatuser.id}`}
-              className={`relative flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md cursor-pointer  w-full  ${
-                isSelected === chatuser.name ? "bg-gray-100" : ""
+              className={`relative flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md cursor-pointer w-full ${
+                isSelected === chatuser.username ? "bg-gray-100" : ""
               }`}
-              key={chatuser.id}
+              key={chatuser.id ?? chatuser.username}
               onClick={() => handleselectedUser(chatuser)}
               onContextMenu={(e) => {
                 handleOptionMenu(e, chatuser);
               }}
             >
-              <div className="hidden  min-w-[40px] h-[40px] md:flex md:items-center md:justify-center bg-amber-100 text-xl font-bold rounded-full overflow-hidden">
+              <div className="hidden min-w-[40px] h-[40px] md:flex md:items-center md:justify-center bg-amber-100 text-xl font-bold rounded-full overflow-hidden">
                 {!imageError && chatuser?.profile ? (
                   <img
                     src={`http://192.168.18.144:8000${chatuser.profile}`}
@@ -269,19 +334,21 @@ const Sidebar = forwardRef(
                 <div className="flex flex-col w-[80%]">
                   <p className="font-medium pb-1">{chatuser.username}</p>
                   <div className="flex justify-between items-center">
-                    {" "}
-                    <p className="text-xs text-gray-500 truncate max-w-[50px] ">
-                      {chatuser.last_message || "No messages yet"}
+                    <p className="text-xs text-gray-500 truncate max-w-[140px]">
+                      {chatuser.last_message &&
+                      chatuser.last_message.trim() !== ""
+                        ? chatuser.last_message
+                        : "No messages yet"}
                     </p>
                   </div>
                 </div>
-                <div className="flex flex-col items-center gap-1.5  w-[20%]">
+                <div className="flex flex-col items-center gap-1.5 w-[20%]">
                   {chatuser.unseen_count > 0 && (
                     <span className="text-xs font-semibold text-white bg-blue-500 rounded-full w-5 h-5 flex items-center justify-center">
                       {chatuser.unseen_count}
                     </span>
                   )}
-                  <p className="md:text-[8px] hidden md:block text-gray-400">
+                  <p className="md:text-[10px] hidden md:block text-gray-400">
                     {chatuser.formattedTime}
                   </p>
                 </div>
@@ -308,7 +375,7 @@ const Sidebar = forwardRef(
                       className="w-full flex gap-2 items-center text-black cursor-pointer py-1 bg-amber-100 p-2 mt-1.5 rounded-md hover:bg-amber-200"
                       onClick={(e) => {
                         e.stopPropagation();
-                        chatuser.is_blocked_by.includes(user.username)
+                        chatuser.is_blocked_by?.includes(user.username)
                           ? handleunBlockClick(chatuser)
                           : handleBlockClick(chatuser);
                         setisOptionMenu({
@@ -318,7 +385,7 @@ const Sidebar = forwardRef(
                         });
                       }}
                     >
-                      {chatuser.is_blocked_by.includes(user.username) ? (
+                      {chatuser.is_blocked_by?.includes(user.username) ? (
                         <>
                           <i className="bi bi-ban"></i>
                           <p className="text-black text-sm">Unblock</p>
@@ -376,7 +443,8 @@ const Sidebar = forwardRef(
           isOpen={showUnfriendModal}
           unfrienduser={unFriendUser}
           onClose={() => {
-            setshowUnfriendModal(false), setunFriendUser(null);
+            setshowUnfriendModal(false);
+            setunFriendUser(null);
           }}
           refetch={fetchUsers}
         />

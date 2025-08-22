@@ -587,7 +587,7 @@ const Signup = () => {
             className="hidden  w-full h-full md:flex flex-col items-center justify-center border-2 bg-amber-200
            rounded-r-xl  border-amber-200"
           >
-            <p>Color fill</p>
+            {/* <p>Color fill</p> */}
           </div>
         </div>
       </div>

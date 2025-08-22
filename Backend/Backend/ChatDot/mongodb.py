@@ -19,6 +19,8 @@ class ChatMessage(Document):
     format = StringField(required=True, default="text")
     images = ImageField( default="")
     voice = FileField(default="")
+    video = FileField(default="")
+    document = FileField(default="") 
 
 
 class Connections(Document):
