@@ -77,98 +77,93 @@ const Signin = () => {
   }, [isLoggedIn, navigate]);
 
   return (
-    <section className=" h-screen  flex items-center justify-center">
-      <div className=" md:w-[65%] md:h-[72%]  ">
-        <div className="h-full w-full grid md:grid-cols-3 p-">
-          <div
-            className="hidden  w-full h-full md:flex flex-col items-center justify-center border-2 bg-amber-200
-           md:rounded-l-xl  border-amber-200 "
-          >
-            {/* <p>Color fill</p> */}
-          </div>
-          <div className="h-full w-full md:col-span-2 flex items-center justify-center">
-            <div className="w-full h-full p-5 flex flex-col items-center justify-center border-2 md:rounded-r-xl border-amber-200">
-              <p className=" md:text-4xl text-2xl font-bold font-[poppins] ">
-                Welcome back!
-              </p>
-              <p className=" text-sm font-light font-[poppins] text-center">
-                Please enter your credentials to continue
-              </p>
+    <section className=" h-screen  flex items-center justify-center bg-[#f8f3ff]">
+      <div className=" md:w-[25%] md:h-[60%]  ">
+        <div className="h-full w-full">
+          <div className="h-full w-full flex items-center justify-between ">
+            <div className="w-full  p-15  flex flex-col items-center justify-center  rounded-xl shadow-xl bg-white mb-4">
+              <div className="flex flex-col items-center justify-center ">
+                <p className=" md:text-2xl text-2xl font-bold font-[poppins]  ">
+                  Welcome Back!
+                </p>
+                <p className=" text-sm font-normal font-[poppins] text-center mt-2 mb-7">
+                  Hey, Please enter your credentials to get signin <br /> to
+                  your account
+                </p>
+              </div>
+
               <form
                 onSubmit={(e) => {
                   if (!loading) Login(e);
                 }}
                 className="flex flex-col w-full items-center justify-center"
               >
-                <div className="w-full relative flex flex-col items-center justify-center mt-10">
-                  <input
-                    type="text"
-                    value={formData.username}
-                    onChange={(e) =>
-                      setformData((prev) => ({
-                        ...prev,
-                        username: e.target.value,
-                      }))
-                    }
-                    placeholder="Enter your username or email"
-                    className="md:placeholder:text-md placeholder:text-xs w-[70%] px-2 pl-10 py-[4px] ring-1 ring-gray-200 rounded-md shadow-md  text-md font-[inter] placeholder:transparent  focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500   placeholder:text-gray-400 "
-                    disabled={loading}
-                  />
-                  <label htmlFor="username">
-                    <i className="bi bi-person absolute top-[3%] left-[16%] text-2xl text-black"></i>
-                  </label>
+                <div className="w-full relative flex flex-col items-center justify-center ">
+                  <div className="w-full relative">
+                    <input
+                      type="text"
+                      value={formData.username}
+                      onChange={(e) =>
+                        setformData((prev) => ({
+                          ...prev,
+                          username: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter your username or email"
+                      className="md:placeholder:text-[13px] placeholder:text-[13px] w-full px-2  pl-10 py-[5px] ring-1 ring-gray-200 rounded-md text-[14px] font-[poppins] placeholder:transparent  focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500   placeholder:text-gray-400 "
+                      disabled={loading}
+                    />
+                    <i className="bi bi-person absolute top-[50%] translate-y-[-50%] left-[10px] text-[18px] text-black"></i>
+                  </div>
                 </div>
-                <div className="w-full relative flex flex-col items-center justify-center md:mt-10 mt-7">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={formData.password}
-                    onChange={(e) => {
-                      seterrors("");
-                      setformData((prev) => ({
-                        ...prev,
-                        password: e.target.value,
-                      }));
-                    }}
-                    minLength={8}
-                    placeholder="Enter your password"
-                    className="peer w-[70%] px-2 pl-10 py-[4px] md:placeholder:text-md placeholder:text-xs ring-1 ring-gray-200 rounded-md shadow-md   text-md font-[inter] placeholder:transparent focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500   placeholder:text-gray-400 "
-                    disabled={loading}
-                  />
-                  <label htmlFor="password">
-                    <i className="bi bi-person-lock absolute top-0 left-[16%] text-2xl text-black"></i>
-                  </label>
-                  <label htmlFor="password">
+                <div className="w-full relative flex flex-col items-center justify-center md:mt-4 mt-8">
+                  <div className="relative w-full">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) => {
+                        seterrors("");
+                        setformData((prev) => ({
+                          ...prev,
+                          password: e.target.value,
+                        }));
+                      }}
+                      minLength={8}
+                      placeholder="Enter your password"
+                      className="peer w-full px-2 pl-10 py-[5px] md:placeholder:text-[13px] placeholder:text-[13px] ring-1 ring-gray-200 rounded-md   text-md font-[poppins] placeholder:transparent focus:outline-none focus:ring-1 focus:valid:ring-[#68479D] focus:invalid:ring-red-500   placeholder:text-gray-400 "
+                      disabled={loading}
+                    />
+                    <i className="bi bi-person-lock absolute left-[10px] top-[50%] translate-y-[-50%] text-[18px] text-black"></i>
                     <i
                       className={`bi ${
                         showPassword ? "bi-eye-slash" : "bi-eye"
-                      } absolute top-0 right-[16%] text-xl text-black cursor-pointer`}
+                      } absolute top-[50%] translate-y-[-50%] right-[10px]  text-[18px] text-black cursor-pointer`}
                       onClick={() => setshowPassword(!showPassword)}
                     ></i>
-                  </label>
+                  </div>
+
                   {errors && (
-                    <p className="absolute -bottom-[80%] left-[17%] text-[13px] font-light font-[inter] text-sm text-red-500 ">
+                    <p className="absolute -bottom-[80%] right-1 text-[12px] font-light font-[poppins] text-sm text-red-500 ">
                       {errors}
                     </p>
                   )}
-                  <p className="peer peer-invalid:visible absolute -bottom-[80%] left-[17%] text-[13px] font-light font-[inter] invisible text-red-500">
+                  <p className="peer peer-invalid:visible absolute -bottom-[80%] left-[17%] text-[13px] font-light font-[poppins] invisible text-red-500">
                     Please enter minimum 8 character
                   </p>
                 </div>
-                <div className="relative w-full pt-3 pb-4">
-                  <Link to="/forgotpass">
-                    <p className="absolute right-[9%] w-full text-sm font-[poppins] font-medium pt-3 text-end pr-10  text-[#68479D] hover:underline cursor-pointer ">
-                      Forgot Password?
-                    </p>
-                  </Link>
-                </div>
+                <Link to="/forgotpass" className="w-full text-left">
+                  <p className="text-[14px] font-[poppins] font-medium my-4 text-[#68479D] hover:underline cursor-pointer ">
+                    Forgot Password?
+                  </p>
+                </Link>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="relative w-[40%] py-1 rounded-md mt-10 ring-1 ring-[#68479D] focus:outline-0 text-white font-bold font-[inter] active:bg-[#7c62a5] bg-[#68479D] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative w-full py-1 rounded-md mt- ring-1 ring-[#68479D] focus:outline-0 text-white font-bold font-[poppins] active:bg-[#7c62a5] bg-[#68479D] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <>
-                      LOGIN
+                      <p className="text-[14px] font-[poppins]">LOGIN</p>
                       <svg
                         aria-hidden="true"
                         className="absolute right-[32%] bottom-[1%] -translate-y-1/2 w-4 h-4 text-gray-200 animate-spin dark:text-gray-300 fill-white "
@@ -187,12 +182,12 @@ const Signin = () => {
                       </svg>
                     </>
                   ) : (
-                    "LOG IN"
+                    <p className="text-[14px] font-[poppins]">LOGIN</p>
                   )}
                 </button>
               </form>
-              <p className="w-full md:text-sm text-xs font-[poppins] md:font-medium pt-10 md:text-end md:pr-10 text-center ">
-                Don't have an account?
+              <p className="w-full md:text-sm text-[14px] font-[poppins] md:font-medium mt-5 text-center ">
+                Don't have an account?{" "}
                 <Link to="/signup">
                   <span className="text-[#68479D] hover:underline cursor-pointer ">
                     Register

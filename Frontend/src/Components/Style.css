@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+/* -------------------------------------------------------- used in signup page for otp input alteration----------------------------------------------------- */
+.p-inputotp-input:focus {
+  border-color: #68479d !important;
+  box-shadow: 0 0 0 1px #68479d !important;
+}
+
+.p-inputotp-input:hover {
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 1px gray !important;
+}
+/* ----------------------------------------------- */
