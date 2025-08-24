@@ -209,8 +209,8 @@ const Home = () => {
   }, [user?.username, access]);
 
   return (
-    <div className="w-full h-screen flex overflow-hidden font-[inter]">
-      <div className="md:w-1/4 w-2/6 h-full flex flex-col border-r border-gray-200">
+    <div className="w-full h-screen flex overflow-hidden font-[Poppins] bg-[#f8f3ff]">
+      <div className=" w-1/4 h-full flex flex-col bg-[#EFEDF8] ">
         <Sidebar
           ref={sidebarRef}
           onBlock={handleBlock}
@@ -222,7 +222,7 @@ const Home = () => {
           onSidebarUpdate={handleSidebarUpdate}
         />
       </div>
-      <div className="w-3/4 h-full flex flex-col bg-[#EFEDF8]">
+      <div className="w-3/4 h-full flex flex-col bg-[#f8f3ff]">
         <ChatScreen
           ref={chatScreenRef}
           selectedUser={selectedUser}

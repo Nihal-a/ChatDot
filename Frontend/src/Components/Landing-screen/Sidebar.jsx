@@ -11,9 +11,13 @@ import { format } from "date-fns";
 import Cookies from "universal-cookie";
 import ProfileView from "./modals/ProfileView";
 import UnfriendModal from "./modals/UnfriendModal";
+import Frndrequest from "./modals/Frndrequest";
 
 const Sidebar = forwardRef(
-  ({ onselectUser, latestMsg, onBlock, onunBlock, onClearChat }, ref) => {
+  (
+    { onselectUser, latestMsg, onBlock, onunBlock, onClearChat, callgetUsers },
+    ref
+  ) => {
     const [search, setSearch] = useState("");
     const [allusers, setAllUsers] = useState([]);
     const [isSelected, setisSelected] = useState();
@@ -23,6 +27,7 @@ const Sidebar = forwardRef(
     const [profileUser, setProfileUser] = useState(null);
     const [showUnfriendModal, setshowUnfriendModal] = useState(false);
     const [unFriendUser, setunFriendUser] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [isOptionMenu, setisOptionMenu] = useState({
       userid: null,
       open: false,
@@ -286,24 +291,41 @@ const Sidebar = forwardRef(
     }, [access, user?.username]);
 
     return (
-      <>
-        <div className="h-[10%] flex items-center px-4">
-          <p className="text-2xl font-bold">ChatDot</p>
+      <section className="w-full  h-full  border-gray-200 flex flex-col p-5 bg-[#f8f3ff]">
+        <div className="h-[10%] flex items-center justify-between px-4 w-full bg-white rounded-t-xl">
+          <p className="text-2xl font-bold">ChatDot</p>{" "}
+          {user.notfication_count > 0 && (
+            <div className="md:w-[15px] md:h-[15px] absolute rounded-full p-1 top-1.5 right-16.5 ring-1 z-10 bg-white ring-green-700 flex items-center justify-center">
+              <p className="text-[10px] font-normal font-[poppins]">
+                {user.notfication_count}
+              </p>
+            </div>
+          )}
+          <div
+            className={`relative w-[40px] h-[40px] rounded-full bg-white  ${
+              user.notfication_count > 0
+                ? "ring-green-700 ring-2"
+                : "ring-[#68479D] ring-1"
+            } overflow-hidden cursor-pointer flex items-center justify-center`}
+            onClick={() => setIsModalOpen(true)}
+          >
+            <i className="absolute  bi bi-person-fill-add text-2xl text-[#68479D]"></i>
+          </div>
         </div>
-        <div className="h-[10%] px-4">
+        <div className="h-[6%] px-4 bg-white">
           <div className="relative w-full">
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search or start new chat"
-              className="w-full py-2 md:pl-10 pl-2 pr-4 text-sm rounded-md ring-1 ring-gray-300 focus:ring-0 focus:outline-none"
+              className="w-full py-2 md:pl-8 pl-2 pr-4 text-sm rounded-md ring-1 ring-gray-300  focus:outline-none"
             />
-            <i className="bi bi-search hidden md:block absolute left-3 top-2.5 text-gray-500 text-md"></i>
+            <i className="bi bi-search hidden md:block absolute left-[10px] top-[50%] translate-y-[-50%] text-[14px] text-black"></i>
           </div>
         </div>
         <div
-          className="flex-grow overflow-y-auto scrollbar-hide px-4 pb-4 overflow-hidden"
+          className="flex-grow overflow-y-auto scrollbar-hide px-4 pb-4 overflow-hidden bg-white rounded-b-xl"
           style={{ scrollbarWidth: "none" }}
         >
           {filteredUsers.map((chatuser) => (
@@ -332,9 +354,9 @@ const Sidebar = forwardRef(
               </div>
               <div className="flex justify-between items-center w-full">
                 <div className="flex flex-col w-[80%]">
-                  <p className="font-medium pb-1">{chatuser.username}</p>
+                  <p className="font-medium text-[14px]">{chatuser.username}</p>
                   <div className="flex justify-between items-center">
-                    <p className="text-xs text-gray-500 truncate max-w-[140px]">
+                    <p className="text-[13px] text-gray-500 truncate ">
                       {chatuser.last_message &&
                       chatuser.last_message.trim() !== ""
                         ? chatuser.last_message
@@ -448,7 +470,12 @@ const Sidebar = forwardRef(
           }}
           refetch={fetchUsers}
         />
-      </>
+        <Frndrequest
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onAccept={callgetUsers}
+        />
+      </section>
     );
   }
 );

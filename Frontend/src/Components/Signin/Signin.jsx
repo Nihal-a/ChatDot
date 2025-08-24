@@ -159,7 +159,7 @@ const Signin = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="relative w-full py-1 rounded-md mt- ring-1 ring-[#68479D] focus:outline-0 text-white font-bold font-[poppins] active:bg-[#7c62a5] bg-[#68479D] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative w-full py-1 rounded-md ring-1 ring-[#68479D] focus:outline-0 text-white font-bold font-[poppins] active:bg-[#7c62a5] bg-[#68479D] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <>

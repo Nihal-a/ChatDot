@@ -1287,10 +1287,10 @@ const ChatScreen = forwardRef(
     if (!selectedUser) {
       return (
         <>
-          <div className="relative h-[8%] flex items-center justify-end px-4 py-2 gap-4 bg-white border-b border-gray-200">
-            {user.notfication_count > 0 && (
+          <div className="relative h-[7%] flex items-center justify-end px-4 py-2 gap-4 bg-white border-b border-gray-200 mt-5 rounded-xl mr-5">
+            {/* {user.notfication_count > 0 && (
               <div className="md:w-[15px] md:h-[15px] absolute rounded-full p-1 top-1.5 right-16.5 ring-1 z-10 bg-white ring-green-700 flex items-center justify-center">
-                <p className="text-[10px] font-normal font-[inter]">
+                <p className="text-[10px] font-normal font-[poppins]">
                   {user.notfication_count}
                 </p>
               </div>
@@ -1304,7 +1304,7 @@ const ChatScreen = forwardRef(
               onClick={() => setIsModalOpen(true)}
             >
               <i className="absolute  bi bi-person-fill-add text-2xl text-[#68479D]"></i>
-            </div>
+            </div> */}
 
             <div
               onClick={() => setDropdown(!dropdown)}
@@ -1361,8 +1361,8 @@ const ChatScreen = forwardRef(
     }
     return (
       <>
-        <div className="h-[8%] flex items-center justify-end px-4 py-2 gap-4 bg-white border-b border-gray-200">
-          <div
+        <div className="h-[7%] flex items-center justify-end px-4 py-2 gap-4 bg-white border-b border-gray-200 mt-5 rounded-xl mr-5">
+          {/* <div
             className={`relative w-[40px] h-[40px] rounded-full bg-white  ${
               user.notfication_count > 0
                 ? "ring-green-700 ring-2"
@@ -1371,7 +1371,7 @@ const ChatScreen = forwardRef(
             onClick={() => setIsModalOpen(true)}
           >
             <i className="absolute  bi bi-person-fill-add text-2xl text-[#68479D]"></i>
-          </div>
+          </div> */}
 
           <div
             onClick={() => setDropdown(!dropdown)}
@@ -1730,16 +1730,16 @@ const ChatScreen = forwardRef(
           <div ref={messageEndRef} />
         </div>
         {selectedUser.is_blocked_by.includes(user.username) ? (
-          <div className="h-[7%] flex items-center justify-center gap-5 px-4 py-3 bg-white border-t rounded-t-xl border-gray-200 max-h-32">
+          <div className="h-[7%] flex items-center justify-center gap-5 px-4 py-3 bg-white border-t rounded-xl border-gray-200 max-h-32 mb-5 mr-5">
             <button
-              className="text-md text-white font-[manrope] w-[20%] rounded-full bg-[#EF4444] ring-1 ring-white  py-0.5 cursor-pointer
+              className="text-md text-white font-[poppins] w-[20%] rounded-full bg-[#EF4444] ring-1 ring-white  py-0.5 cursor-pointer
            hover:text-[#EF4444] hover:ring-[#EF4444] hover:bg-white ransition-all duration-300 delay-100"
               onClick={() => clearChat()}
             >
               <i className="bi bi-trash3"></i> Delete Chat
             </button>
             <button
-              className="text-md text-white font-[manrope] w-[20%] rounded-full bg-[#22C55E] ring-1 ring-white py-0.5 cursor-pointer
+              className="text-md text-white font-[poppins] w-[20%] rounded-full bg-[#22C55E] ring-1 ring-white py-0.5 cursor-pointer
            hover:text-[#22C55E] hover:ring-[#22C55E] hover:bg-white ransition-all duration-300 delay-100"
               onClick={() => handleunBlock()}
             >
@@ -1747,7 +1747,7 @@ const ChatScreen = forwardRef(
             </button>
           </div>
         ) : (
-          <div className="relative h-[8%] flex items-center justify-between px-4 py-3 bg-white border-t rounded-t-xl border-gray-200 max-h-32">
+          <div className="relative h-[8%] flex items-center justify-between px-4 py-3 bg-white border-t rounded-xl border-gray-200 max-h-32 mb-5 mr-5">
             <i
               className="bi bi-plus text-2xl"
               onClick={() => setattachmentMenu(!attachmentMenu)}
@@ -1764,7 +1764,7 @@ const ChatScreen = forwardRef(
                   }}
                 >
                   <i className="bi bi-image"></i>
-                  <p className="text-sm font-[inter] ">Photos </p>
+                  <p className="text-sm font-[poppins] ">Photos </p>
                 </div>
 
                 <div
@@ -1774,7 +1774,7 @@ const ChatScreen = forwardRef(
                   }}
                 >
                   <i className="bi bi-file-earmark-play-fill"></i>
-                  <p className="text-sm font-[inter] ">Videos </p>
+                  <p className="text-sm font-[poppins] ">Videos </p>
                 </div>
 
                 {/* <div
