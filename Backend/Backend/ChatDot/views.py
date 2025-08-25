@@ -316,7 +316,7 @@ def get_messages(request):
 
         messages = ChatMessage.objects(
             MongoQ(sender=sender, receiver=receiver) | MongoQ(sender=receiver, receiver=sender),
-            is_cleared_by__ne=sender  # Don't show messages cleared by this user
+            is_cleared_by__ne=sender  
         ).order_by('timestamp')
 
         grouped = defaultdict(list)
@@ -665,6 +665,7 @@ def profile_edit(request):
         about = request.data.get("about")
         profile = request.FILES.get("profile")
         operation = request.data.get("operation")
+        print(operation)
 
         user.fullname = name
 
@@ -675,7 +676,7 @@ def profile_edit(request):
             user.profile = None
         elif operation=="change":
             user.profile = profile
-        elif operation=="nochange":
+        elif operation=="nochange": 
             ...
 
         user.save()

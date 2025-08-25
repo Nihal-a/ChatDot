@@ -1,57 +1,26 @@
-
 import { fetchWithAuth } from "../../../utils";
 import { useSelector } from "react-redux";
 import Cookies from "universal-cookie";
 
-const UnfriendModal = ({ isOpen, onClose, unfrienduser, refetch }) => {
+const ClearChatModal = ({ isOpen, onClose, clearchat, clearChatUser }) => {
   if (!isOpen) return null;
 
   const cookies = new Cookies();
   const access = cookies.get("access");
   const { user } = useSelector((state) => state.chatdot);
 
-  const unfriend = async () => {
-    try {
-      const res = await fetchWithAuth(
-        "http://192.168.18.144:8000/api/unfriend",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${access}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            me: user.username,
-            my_friend: unfrienduser.username,
-          }),
-        }
-      );
-
-      if (res.status === 200) {
-        onClose();
-        refetch();
-      } else {
-        console.log("error at unfriend");
-      }
-    } catch (err) {
-      console.log("error at unfriend");
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent bg-opacity-40 backdrop-blur-sm transition-opacity">
       <div className="bg-white/90 rounded-2xl p-6 w-[90%] max-w-sm shadow-2xl animate-fade-in">
         <h2 className="text-xl font-semibold text-gray-800 mb-3 text-center">
-          Unfriend {unfrienduser.name}?
+          Clear Chat {clearChatUser.name}?
         </h2>
 
         <p className="text-gray-600 text-sm text-center mb-6">
-          This action will unfriend {unfrienduser.name}, existing messages &
-          media also will be erased.
-          <br />
+          This will permanently delete your chat with {clearChatUser.name},
+          including all messages and media. Once cleared, this {" "}
           <span className="text-red-700 font-semibold">
-            {" "}
-            Action can’t be undone!
+             action cannot be undone.!
           </span>
         </p>
 
@@ -64,7 +33,7 @@ const UnfriendModal = ({ isOpen, onClose, unfrienduser, refetch }) => {
           </button>
 
           <button
-            onClick={() => unfriend()}
+            onClick={() => clearchat()}
             className="px-4 py-1.5 rounded-full bg-red-500 text-white hover:bg-red-600 transition cursor-pointer"
           >
             Confirm
@@ -75,4 +44,4 @@ const UnfriendModal = ({ isOpen, onClose, unfrienduser, refetch }) => {
   );
 };
 
-export default UnfriendModal;
+export default ClearChatModal;

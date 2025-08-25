@@ -199,10 +199,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # timestamp__lte=clear_time
         ).update(push__is_cleared_by=username)
         
-        # print(f"Step 1 - Removed user from {result} messages")
-        # print(f"Step 2 - Added user to {result2} messages")
-        # print(f"Step 1 - Removed user from {result} messages")
-        # print(f"Step 2 - Added user to {result2} messages")
         print(f"Total cleared messages for {username} before {clear_time}")
 
         Connections.objects(
@@ -645,10 +641,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_send(
             self.room_group_name,
             {
-                'type': 'chat_voice',   # ✅ not chat_images
+                'type': 'chat_voice',  
                 'id': str(chat_message.id),
                 'sender': self.user.username,
-                'voice': base64_data,   # ✅ send audio back to frontend
+                'voice': base64_data,   
                 'filename': filename,
                 'receiver': receiver,
                 'datetime': current_time.isoformat(),

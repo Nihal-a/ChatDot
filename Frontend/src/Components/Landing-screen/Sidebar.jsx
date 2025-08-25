@@ -12,6 +12,7 @@ import Cookies from "universal-cookie";
 import ProfileView from "./modals/ProfileView";
 import UnfriendModal from "./modals/UnfriendModal";
 import Frndrequest from "./modals/Frndrequest";
+import ClearChatModal from "./modals/ClearChatModal";
 
 const Sidebar = forwardRef(
   (
@@ -26,7 +27,9 @@ const Sidebar = forwardRef(
     const [showProfileView, setshowProfileView] = useState(false);
     const [profileUser, setProfileUser] = useState(null);
     const [showUnfriendModal, setshowUnfriendModal] = useState(false);
+    const [showClearChatModal, setshowClearChatModal] = useState(false);
     const [unFriendUser, setunFriendUser] = useState(null);
+    const [clearChatUser, setClearChatUser] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isOptionMenu, setisOptionMenu] = useState({
       userid: null,
@@ -49,11 +52,13 @@ const Sidebar = forwardRef(
       fetchUsers();
     };
 
-    const handleClearChat = (chatuser) => {
-      onClearChat(chatuser.username);
+    const handleClearChat = () => {
+      setshowClearChatModal(false);
+      onClearChat(clearChatUser.username);
       const userdetails = allusers.find(
-        (item) => item.username === chatuser.username
+        (item) => item.username === clearChatUser.username
       );
+
       console.log(userdetails);
       if (userdetails) {
         userdetails.last_message = "";
@@ -340,7 +345,7 @@ const Sidebar = forwardRef(
                 handleOptionMenu(e, chatuser);
               }}
             >
-              <div className="hidden min-w-[40px] h-[40px] md:flex md:items-center md:justify-center bg-amber-100 text-xl font-bold rounded-full overflow-hidden">
+              <div className="hidden min-w-[40px] h-[40px] md:flex md:items-center md:justify-center bg-[#f8f3ff] text-xl font-bold rounded-full overflow-hidden">
                 {!imageError && chatuser?.profile ? (
                   <img
                     src={`http://192.168.18.144:8000${chatuser.profile}`}
@@ -385,16 +390,16 @@ const Sidebar = forwardRef(
                       : "top-14 right-7"
                   }`}
                 >
-                  <div className="min-w-[43%] rounded-sm ring-1 min-h-[170px] bg-white py-1.5 px-2 shadow-lg">
+                  <div className="min-w-[43%] rounded-lg ring-1 min-h-[155px] bg-white  px-2 shadow-lg py-2">
                     <div
-                      className="w-full flex gap-2 items-center text-black cursor-pointer py-1 bg-amber-100 p-2 mt-1.5 rounded-md hover:bg-amber-200"
+                      className="w-full flex gap-2 items-center text-black cursor-pointer py-1 p-2  rounded-md "
                       onClick={(e) => handleShowProfile(e, chatuser)}
                     >
                       <i className="bi bi-person-circle"></i>
                       <p className="text-black text-sm">Show Profile</p>
                     </div>
                     <div
-                      className="w-full flex gap-2 items-center text-black cursor-pointer py-1 bg-amber-100 p-2 mt-1.5 rounded-md hover:bg-amber-200"
+                      className="w-full flex gap-2 items-center text-black cursor-pointer py-1  p-2  rounded-md "
                       onClick={(e) => {
                         e.stopPropagation();
                         chatuser.is_blocked_by?.includes(user.username)
@@ -420,10 +425,12 @@ const Sidebar = forwardRef(
                       )}
                     </div>
                     <div
-                      className="w-full flex gap-2 items-center text-black cursor-pointer py-1 bg-amber-100 p-2 mt-1.5 rounded-md hover:bg-amber-200"
+                      className="w-full flex gap-2 items-center text-black cursor-pointer py-1  p-2  rounded-md "
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleClearChat(chatuser);
+                        // handleClearChat(chatuser);
+                        setshowClearChatModal(true);
+                        setClearChatUser(chatuser);
                         setisOptionMenu({
                           open: false,
                           userid: null,
@@ -435,7 +442,7 @@ const Sidebar = forwardRef(
                       <p className="text-black text-sm">Clear Chat</p>
                     </div>
                     <div
-                      className="w-full flex gap-2 items-center text-black cursor-pointer py-1 bg-amber-100 p-2 mt-1.5 rounded-md hover:bg-amber-200"
+                      className="w-full flex gap-2 items-center text-black cursor-pointer py-1  p-2  rounded-md "
                       onClick={(e) => {
                         e.stopPropagation();
                         handleUnfriend(chatuser);
@@ -460,6 +467,16 @@ const Sidebar = forwardRef(
           onClose={handleCloseProfile}
           isOpen={showProfileView}
           Seluser={profileUser}
+        />
+
+        <ClearChatModal
+          isOpen={showClearChatModal}
+          onClose={() => {
+            setshowClearChatModal(false);
+            setClearChatUser(null);
+          }}
+          clearchat={handleClearChat}
+          clearChatUser={clearChatUser}
         />
         <UnfriendModal
           isOpen={showUnfriendModal}

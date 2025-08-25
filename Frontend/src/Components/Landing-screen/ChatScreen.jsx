@@ -1317,7 +1317,7 @@ const ChatScreen = forwardRef(
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-black/40 text-xl font-bold">
+                <div className="w-full h-full flex items-center justify-center bg-[#f8f3ff] text-xl font-bold">
                   {user?.username?.[0]?.toUpperCase() || "?"}
                 </div>
               )}
@@ -1325,7 +1325,7 @@ const ChatScreen = forwardRef(
             {dropdown && (
               <div
                 ref={dropdownRef}
-                className="absolute top-12 right-0 mt-2 w-40 bg-white shadow-lg rounded-lg z-10"
+                className="absolute top-17 right-0 w-40 bg-white shadow-lg rounded-b-lg z-10"
               >
                 <button
                   onClick={(e) => handleShowProfile(e, user)}
@@ -1361,7 +1361,7 @@ const ChatScreen = forwardRef(
     }
     return (
       <>
-        <div className="h-[7%] flex items-center justify-end px-4 py-2 gap-4 bg-white border-b border-gray-200 mt-5 rounded-xl mr-5">
+        <div className="relative h-[7%] flex items-center justify-between px-4 py-2 gap-4 bg-white border-b border-gray-200 mt-5 rounded-xl mr-5">
           {/* <div
             className={`relative w-[40px] h-[40px] rounded-full bg-white  ${
               user.notfication_count > 0
@@ -1372,7 +1372,32 @@ const ChatScreen = forwardRef(
           >
             <i className="absolute  bi bi-person-fill-add text-2xl text-[#68479D]"></i>
           </div> */}
-
+          <div className="flex items-center gap-3">
+            {" "}
+            <div className="w-[40px] h-[40px] rounded-full bg-white ring-1 ring-[#68479D] overflow-hidden ">
+              {selectedUser?.profile ? (
+                <img
+                  src={`http://192.168.18.144:8000${selectedUser.profile}`}
+                  alt="okokok"
+                  // onError={(e) => {
+                  //   e.target.onerror = null;
+                  //   e.target.src = "/fallback.png"; // or some default avatar
+                  // }}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-[#f8f3ff] text-xl font-bold">
+                  {selectedUser?.username?.[0]?.toUpperCase() || "?"}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col h-full items-start justify-center">
+              <p className="text-[14px] font-semibold ">{selectedUser?.name}</p>
+              <p className="text-[13px] text-gray-500 text-base/4">
+                @{selectedUser?.username}
+              </p>
+            </div>
+          </div>
           <div
             onClick={() => setDropdown(!dropdown)}
             className="w-[40px] h-[40px] rounded-full bg-white ring-1 ring-[#68479D] overflow-hidden cursor-pointer"
@@ -1388,7 +1413,7 @@ const ChatScreen = forwardRef(
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-black/40 text-xl font-bold">
+              <div className="w-full h-full flex items-center justify-center bg-[#f8f3ff] text-xl font-bold">
                 {user?.username?.[0]?.toUpperCase() || "?"}
               </div>
             )}
@@ -1396,7 +1421,7 @@ const ChatScreen = forwardRef(
           {dropdown && (
             <div
               ref={dropdownRef}
-              className="absolute top-12 right-0 mt-2 w-40 bg-white shadow-lg rounded-lg z-10"
+              className="absolute top-17 right-0 w-40 bg-white shadow-lg rounded-b-lg z-10"
             >
               <button
                 onClick={(e) => handleShowProfile(e, user)}
@@ -1417,9 +1442,11 @@ const ChatScreen = forwardRef(
           className="flex-grow overflow-y-auto scrollbar-hide px-4 py-3 space-y-2"
           style={{ scrollbarWidth: "none" }}
         >
-          {loading && <div>Loading messages...</div>}
+          {loading && <div> <p className="text-gray-500 font-[poppins] text-[14px]">Loading messages...</p></div>}
           {!loading && Object.keys(messages).length === 0 && (
-            <div>No messages</div>
+            <div className="w-full flex items-center justify-center">
+              <p className="text-gray-500 font-[poppins] text-[14px]">No messages.</p>
+            </div>
           )}
           {!loading &&
             Object.entries(messages).map(([date, msgs]) => {
@@ -1749,41 +1776,62 @@ const ChatScreen = forwardRef(
         ) : (
           <div className="relative h-[8%] flex items-center justify-between px-4 py-3 bg-white border-t rounded-xl border-gray-200 max-h-32 mb-5 mr-5">
             <i
-              className="bi bi-plus text-2xl"
+              className="bi bi-plus text-2xl cursor-pointer"
               onClick={() => setattachmentMenu(!attachmentMenu)}
             ></i>
             {attachmentMenu ? (
               <div
-                className="absolute bottom-15 left-1 w-[8%] h-[100px] shadow-xl ring-1 ring-gray-300 rounded-md p-3 flex flex-col items-start gap-2 "
+                className="absolute bottom-19 left-0 w-48 bg-white shadow-sm border border-gray-200 rounded-lg py-2 flex flex-col"
                 ref={attachmentMenuRef}
               >
+                {/* Photos */}
                 <div
-                  className="w-full h-[25%]  flex  items-center justify-start gap-1 cursor-pointer"
+                  className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer"
                   onClick={() => {
-                    triggerImageFileInput(), setattachmentMenu(false);
+                    triggerImageFileInput();
+                    setattachmentMenu(false);
                   }}
                 >
-                  <i className="bi bi-image"></i>
-                  <p className="text-sm font-[poppins] ">Photos </p>
+                  <div className="flex items-center gap-2">
+                    <i className="bi bi-image text-gray-600"></i>
+                    <p className="text-sm font-[poppins] text-gray-700">
+                      Photos
+                    </p>
+                  </div>
+                  <i className="bi bi-chevron-right text-gray-400 text-xs"></i>
                 </div>
 
+                {/* Videos */}
                 <div
-                  className="w-full h-[25%]  flex items-center justify-start gap-1 cursor-pointer"
+                  className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer"
                   onClick={() => {
-                    triggerVideoFileInput(), setattachmentMenu(false);
+                    triggerVideoFileInput();
+                    setattachmentMenu(false);
                   }}
                 >
-                  <i className="bi bi-file-earmark-play-fill"></i>
-                  <p className="text-sm font-[poppins] ">Videos </p>
+                  <div className="flex items-center gap-2">
+                    <i className="bi bi-file-earmark-play-fill text-gray-600"></i>
+                    <p className="text-sm font-[poppins] text-gray-700">
+                      Videos
+                    </p>
+                  </div>
+                  <i className="bi bi-chevron-right text-gray-400 text-xs"></i>
                 </div>
 
+                {/* Optional Document */}
                 {/* <div
-                className="w-full h-[25%]  flex items-center justify-start gap-1 cursor-pointer"
-                onClick={() => triggerImageFileInput()}
-              >
-                <i className="bi bi-file-earmark"></i>
-                <p className="text-sm font-[inter] ">Document</p>
-              </div> */}
+        className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer"
+        onClick={() => {
+          triggerDocumentFileInput();
+          setattachmentMenu(false);
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <i className="bi bi-file-earmark text-gray-600"></i>
+          <p className="text-sm font-[poppins] text-gray-700">Documents</p>
+        </div>
+        <i className="bi bi-chevron-right text-gray-400 text-xs"></i>
+      </div> */}
               </div>
             ) : (
               ""
@@ -1827,14 +1875,18 @@ const ChatScreen = forwardRef(
                     </div>
                   )}
 
-                  {/* Bottom bar with thumbnails + send */}
-                  <div className="w-full h-[10%] px-1 flex items-center justify-between border-t border-gray-300 shadow-sm">
-                    <div className="w-[90%] h-full flex items-center justify-center py-1 ">
+                  <div className="w-full h-[10%] px-2 flex items-center justify-between border-t border-gray-200 bg-white shadow-md rounded-b-lg">
+                    {/* Thumbnails */}
+                    <div className="w-[90%] h-full flex items-center overflow-x-auto gap-2 py-2">
                       {previews.length > 1 &&
                         previews.map((thumb, thumbIndex) => (
                           <div
                             key={thumb.url}
-                            className="max-w-[45px] h-full mr-1 cursor-pointer"
+                            className={`min-w-[45px] h-[45px] rounded-md overflow-hidden border ${
+                              currentIndex === thumbIndex
+                                ? "border-[#68479D]"
+                                : "border-gray-200"
+                            } cursor-pointer shadow-sm`}
                             onClick={() => {
                               setmainPreviewImage(thumb.url);
                               setCurrentIndex(thumbIndex);
@@ -1844,19 +1896,21 @@ const ChatScreen = forwardRef(
                               <img
                                 src={thumb.url}
                                 alt=""
-                                className="w-full h-full object-cover object-center"
+                                className="w-full h-full object-cover"
                               />
                             ) : (
                               <video
                                 src={thumb.url}
-                                className="w-full h-full object-cover object-center"
+                                className="w-full h-full object-cover"
                               />
                             )}
                           </div>
                         ))}
                     </div>
 
+                    {/* Send Button */}
                     <button
+                      className="flex items-center justify-center p-2 bg-[#68479D] hover:bg-[#573a85] rounded-full shadow-md"
                       onClick={() => {
                         sendingFileType === "image"
                           ? sendImage()
@@ -1865,7 +1919,7 @@ const ChatScreen = forwardRef(
                           : sendVideo();
                       }}
                     >
-                      <VscSend className="md:text-xl text-sm text-[#68479D]" />
+                      <VscSend className="text-white text-lg" />
                     </button>
                   </div>
                 </div>

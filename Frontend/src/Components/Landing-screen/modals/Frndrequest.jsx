@@ -178,101 +178,107 @@ const Frndrequest = ({ isOpen, onClose, onAccept }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg md:w-[70%] md:h-[70%] w-[90%] h-[60%] shadow-lg flex flex-col">
-        <div className="flex justify-between items-center border-b pb-2 mb-4 flex-shrink-0">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Make Circle Bigger!!
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg flex flex-col md:w-[45%] md:h-[60%] w-[90%] h-[60%] ">
+        <div className="flex justify-between items-center border-b border-dashed pb-2 mb-4 flex-shrink-0">
+          <h3 className="text-[16px]  font-bold font-[poppins]  text-black">
+            FIND FRIENDS
           </h3>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-red-500 text-xl"
+            className="text-gray-500 hover:text-red-500 text-xl cursor-pointer"
           >
-            X
+            <i class="bi bi-x text-2xl text-black"></i>
           </button>
         </div>
-        <div className="flex-1 grid md:grid-cols-2 gap-4 min-h-2">
+        <div className="flex-1 grid md:grid-cols-2 gap-4 min-h-2 ">
           <div className="flex flex-col min-h-0">
-            <p className="text-white dark:text-white text-2xl pb-3.5 flex-shrink-0">
-              Friend Requests
+            <p className="text-black dark:text-white text-[16px]  pb-3.5 flex-shrink-0">
+              FRIEND REQUESTS
             </p>
             <div
               className="flex-1 overflow-y-auto pt-3 px-3 rounded-md"
               style={{ scrollbarWidth: "none" }}
             >
-              {friendRequests.map((req) => (
-                <div
-                  key={req.req_id}
-                  className="shadow-[0_4px_20px_rgba(255,255,255,0.1)]
+              {friendRequests.length > 0 ? (
+                friendRequests.map((req) => (
+                  <div
+                    key={req.req_id}
+                    className="shadow-[0_4px_20px_rgba(255,255,255,0.1)]
                             hover:shadow-[0_6px_25px_rgba(255,255,255,0.15)]
                             transition-shadow duration-300 flex items-center justify-between w-full text-white rounded-md p-3 mb-4"
-                >
-                  <div className="ring-1 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0 flex items-center justify-center">
-                    {req?.profile ? (
-                      <img
-                        src={`http://192.168.18.144:8000${req.profile}`}
-                        alt="profile"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="font-semibold text-lg">
-                        {req?.name?.[0]?.toUpperCase() || "?"}
-                      </span>
-                    )}
-                  </div>
+                  >
+                    <div className="ring-1 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0 flex items-center justify-center">
+                      {req?.profile ? (
+                        <img
+                          src={`http://192.168.18.144:8000${req.profile}`}
+                          alt="profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="font-semibold text-lg">
+                          {req?.name?.[0]?.toUpperCase() || "?"}
+                        </span>
+                      )}
+                    </div>
 
-                  {/* User Info */}
-                  <div className="flex flex-col ml-4 flex-grow min-w-0">
-                    <p className="truncate">{req.name}</p>
-                    <p className="truncate">{req.username}</p>
-                  </div>
+                    {/* User Info */}
+                    <div className="flex flex-col ml-4 flex-grow min-w-0">
+                      <p className="truncate">{req.name}</p>
+                      <p className="truncate">{req.username}</p>
+                    </div>
 
-                  {/* Buttons */}
-                  <div className="flex flex-col mr-3 gap-1 flex-shrink-0">
-                    <button
-                      className="rounded-md py-0.5 px-2 ring-1 ring-green-700 bg-green-700 text-white text-sm font-medium hover:bg-green-500 cursor-pointer"
-                      onClick={() => handleConfirmReq(req.req_id)}
-                    >
-                      CONFIRM
-                    </button>
-                    <button
-                      className="rounded-md py-0.5 px-2 ring-1 ring-red-700 bg-red-700 text-white text-sm font-medium hover:bg-red-500 cursor-pointer"
-                      onClick={() => handleCancelmReq(req.req_id)}
-                    >
-                      REJECT
-                    </button>
+                    {/* Buttons */}
+                    <div className="flex flex-col mr-3 gap-1 flex-shrink-0">
+                      <button
+                        className="rounded-md py-0.5 px-2 ring-1 ring-green-700 bg-green-700 text-white text-sm font-medium hover:bg-green-500 cursor-pointer"
+                        onClick={() => handleConfirmReq(req.req_id)}
+                      >
+                        CONFIRM
+                      </button>
+                      <button
+                        className="rounded-md py-0.5 px-2 ring-1 ring-red-700 bg-red-700 text-white text-sm font-medium hover:bg-red-500 cursor-pointer"
+                        onClick={() => handleCancelmReq(req.req_id)}
+                      >
+                        REJECT
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-center text-gray-500">No friend requests yet.</p>
+              )}
             </div>
           </div>
-          <div className="flex flex-col min-h-0">
-            <div className="flex-shrink-0 mb-2 flex justify-start">
-              <div className="relative w-full ml-3">
-                <p className="text-white dark:text-white text-2xl pb-3.5 flex-shrink-0">
-                  Add Friends
+          <div className="flex flex-col m bg-[#FAFAFA] rounded-2xl p-3 w-full ">
+            <div className="flex-shrink-0 mb-2 flex justify-start min-w-full">
+              <div className="relative w-full">
+                <p className="text-[16px] font-bold font-[poppins] py-3.5 flex-shrink-0 ml-3">
+                  ADD FRIENDS
                 </p>
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setsearch(e.target.value)}
-                  placeholder="Search or find your friend"
-                  className="w-[95%] py-2 ml-3 mb-2.5 pl-10 pr-4 text-sm rounded-md ring-1 ring-gray-300 focus:outline-none placeholder:text-gray-300 text-white"
-                />
-                <i className="bi bi-search absolute left-6 bottom-4 text-gray-500 text-md"></i>
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setsearch(e.target.value)}
+                    placeholder="Search or find your friend"
+                    className="w-full py-2 md:pl-8 pl-2 pr-4 text-sm rounded-md ring-1 ring-gray-300  focus:outline-none"
+                  />
+                  <i className="bi bi-search hidden md:block absolute left-[10px] top-[50%] translate-y-[-50%] text-[14px] text-black"></i>
+                </div>
               </div>
             </div>
             <div
-              className="flex-1 overflow-y-auto pt-3 px-3 rounded-md ml-3"
+              className="flex-1 overflow-y-auto mt-3 rounded-md p-4"
               style={{ scrollbarWidth: "none" }}
             >
               {searchResults.map((user) => (
                 <div
                   className="shadow-[0_4px_20px_rgba(255,255,255,0.1)]
                             hover:shadow-[0_6px_25px_rgba(255,255,255,0.15)]
-                            transition-shadow duration-300 flex items-center justify-between w-full text-white rounded-md p-3 mb-4"
+                            transition-shadow duration-300 flex items-center justify-between w-full text-black rounded-md  mb-4"
                 >
                   {/* Avatar */}
-                  <div className="hidden  bg-gray-600 w-[50px] h-[50px] rounded-full overflow-hidden ml-3 flex-shrink-0 md:flex items-center justify-center">
+                  <div className="hidden  bg-gray-600 w-[45px] h-[45px] rounded-full overflow-hidden flex-shrink-0 md:flex items-center justify-center">
                     {user?.profile ? (
                       <img
                         src={`http://192.168.18.144:8000${user.profile}`}
@@ -286,15 +292,15 @@ const Frndrequest = ({ isOpen, onClose, onAccept }) => {
                     )}
                   </div>
 
-                  {/* User Info */}
-                  <div className="flex flex-col ml-6 flex-grow min-w-0 ">
-                    <p className="truncate text-xl font-bold">{user.name}</p>
-                    <p className="hidden md:block truncate text-md">
-                      {user.username}
+                  <div className="flex flex-col mx-2.5 flex-grow min-w-0 ">
+                    <p className="truncate  font-semibold text-[14px]">
+                      {user.name}
+                    </p>
+                    <p className="hidden md:block font-normal text-[12px]">
+                      @{user.username}
                     </p>
                   </div>
 
-                  {/* Buttons */}
                   <div className="flex flex-col mr-3 gap-1 flex-shrink-0">
                     <button
                       className={`rounded-md py-0.5 px-2 ring-1 ${
